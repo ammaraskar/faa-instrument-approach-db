@@ -2,7 +2,6 @@
 
 Database of instrument approaches generated from parsing FAA Approach plates.
 
-
 ## Why not use CIFP?
 
 As neat as the free FAA [CIFP](https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/cifp/download/)
@@ -24,6 +23,16 @@ CIFP and approach plates are likely derived from this. The Form 8260 is a truly
 cursed thing, you can view one here: https://www.faa.gov/aero_docs/acifp/2015121527331001001-SFO/CA_KSFO_ILS%20OR%20LOC%20RWY%2028LSAC2_A25A_F.PDF
 (Also present in test_data folder.)
 
+## Parsing Details
+
+1. Draw just straight lines and rectangles from the PDF. This provides a basic
+   tabular structure.
+
+2. Segment the lines/rectangles into different areas based on relative sizes.
+   This includes areas such as the missed approach instructions, runway/airport
+   information, plan view, communication boxes, profile box, minimums etc.
+
+3. Extract information from each segmented area such as the minimums.
 
 ### Notes:
 

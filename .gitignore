@@ -1,5 +1,8 @@
-# Testing file
+# Testing files
 output.json
+
+segmented.png
+page.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
