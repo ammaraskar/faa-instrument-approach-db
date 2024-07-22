@@ -14,7 +14,8 @@ def line_segment_as_rect_from_points(point1, point2):
     rect.normalize()
     return rect
 
-def segment_plate_into_boxes(plate, drawings, debug=False):
+
+def segment_plate_into_rectangles(plate, drawings, debug=False):
     """
     Takes the plate pdf and returns a list of each Rectangle in the plate.
 
@@ -93,10 +94,12 @@ def segment_plate_into_boxes(plate, drawings, debug=False):
     if debug:
         import random
         shape = outpage.new_shape()
+        # Draw all segmented boxes.
         for rect in segments:
             shape.draw_rect(rect)
             shape.finish(color=(1, 0, 0), fill=(random.random(), random.random(), random.random()))
         shape.commit()
+        # Label the center of all the rectangles.
         for i, rect in enumerate(segments):
             outpage.insert_text(rect.top_left + pymupdf.Point(rect.width / 2.0, rect.height / 2.0), str(i))
         outpage.get_pixmap(dpi=400).save("segmented.png")
