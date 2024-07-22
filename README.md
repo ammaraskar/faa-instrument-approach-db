@@ -32,6 +32,8 @@ cursed thing, you can view one here: https://www.faa.gov/aero_docs/acifp/2015121
    This includes areas such as the missed approach instructions, runway/airport
    information, plan view, communication boxes, profile box, minimums etc.
 
+   ![Example of segmented image](test_data/segmented.png)
+
 3. Extract information from each segmented area such as the minimums.
 
 ## Development

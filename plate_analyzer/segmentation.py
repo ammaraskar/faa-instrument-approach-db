@@ -85,18 +85,20 @@ def segment_plate_into_boxes(plate, drawings, debug=False):
             continue
         rectangle = pymupdf.Rect((x0, y0, x1, y1))
         # Skip anything too narrow.
-        if rectangle.height < 5:
+        if rectangle.height < 5 or rectangle.width < 5:
             continue
         segments.append(rectangle)
 
     # Visually dump the segmented areas in debug mode.
     if debug:
+        import random
         shape = outpage.new_shape()
         for rect in segments:
             shape.draw_rect(rect)
-            import random
             shape.finish(color=(1, 0, 0), fill=(random.random(), random.random(), random.random()))
         shape.commit()
+        for i, rect in enumerate(segments):
+            outpage.insert_text(rect.top_left + pymupdf.Point(rect.width / 2.0, rect.height / 2.0), str(i))
         outpage.get_pixmap(dpi=400).save("segmented.png")
 
     return segments
