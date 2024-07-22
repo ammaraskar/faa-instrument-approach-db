@@ -12,6 +12,27 @@ class PlateComments:
 
 
 @dataclass
+class ApproachMinimum:
+    altitude: str
+    rvr: Optional[str]
+    visibility: Optional[str]
+
+
+@dataclass
+class ApproachCategory:
+    approach_type: str
+    # Altitude, visibility for each category.
+    # e.g 300 3/4
+    cat_a: ApproachMinimum
+    cat_b: ApproachMinimum
+    cat_c: ApproachMinimum
+    cat_d: ApproachMinimum
+    # Used if these minimums are valid based on a condition, such as being
+    # able to identify a particular fix.
+    condition: Optional[str]
+
+
+@dataclass
 class SegmentedPlate:
     approach_course: Tuple[pymupdf.Rect, str]
 
@@ -19,7 +40,7 @@ class SegmentedPlate:
     comments: Tuple[pymupdf.Rect, PlateComments]
     missed_approach_instructions: Tuple[pymupdf.Rect, str]
 
-    approach_minimums_boxes: List[pymupdf.Rect]
+    approach_minimums: List[ApproachCategory]
 
 
 def extract_text_from_segmented_plate(
@@ -47,9 +68,6 @@ def extract_text_from_segmented_plate(
             previous_y = rectangle_y
         rectangle_layout[-1].append(r)
 
-    for rects in rectangle_layout:
-        print(rects)
-
     approach_course_box = rectangle_layout[0][1]
     approach_text = plate.get_textbox(approach_course_box, textpage=textpage).strip()
     assert "APP CRS" in approach_text
@@ -72,7 +90,7 @@ def extract_text_from_segmented_plate(
     missed_approach_text = plate.get_text(
         option="words", sort=True, clip=missed_approach_rect
     )
-    missed_approach_text = " ".join([m[4].strip() for m in missed_approach_text])
+    missed_approach_text = pymupdf_extracted_words_to_string(missed_approach_text)
 
     # Comments box will be around half the width of the document, and its bottom
     # will line up with the missed approach box.
@@ -104,7 +122,7 @@ def extract_text_from_segmented_plate(
         left_side_comments.top_right, comments_box.bottom_right
     )
     comments_text = plate.get_text(option="words", sort=True, clip=right_side_comments)
-    comments_text = " ".join([m[4].strip() for m in comments_text])
+    comments_text = pymupdf_extracted_words_to_string(comments_text)
 
     comments = PlateComments(
         non_standard_takeoff_minimums,
@@ -122,19 +140,190 @@ def extract_text_from_segmented_plate(
                 and int(rect.width - comments_box.width) == 0
                 and rect.top_left.y > comments_box.top_left.y
             ):
-                required_equipment_box = rect
+                required_equipment = rect
                 break
 
-    if required_equipment_box:
-        required_equipment = plate.get_text(
-            option="words", sort=True, clip=required_equipment_box
+    if required_equipment:
+        required_equipment_text = plate.get_text(
+            option="words", sort=True, clip=required_equipment
         )
-        required_equipment = " ".join([m[4].strip() for m in required_equipment])
-        required_equipment = (required_equipment_box, required_equipment)
+        required_equipment = (
+            required_equipment,
+            pymupdf_extracted_words_to_string(required_equipment_text),
+        )
+
+    minimums = extract_minimums(rectangle_layout, plate=plate, textpage=textpage)
 
     return SegmentedPlate(
         approach_course=(approach_course_box, approach_text),
         required_equipment=required_equipment,
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),
         comments=comments,
+        approach_minimums=minimums,
     )
+
+
+CATEGORIES = "ABCD"
+
+
+def extract_minimums(
+    rectangle_layout, plate: pymupdf.Page, textpage
+) -> List[ApproachCategory]:
+    # Locate the rectangle that says "CATEGORY"
+    category_rect = None
+    for i in range(len(rectangle_layout) - 1, 0, -1):
+        for j, rect in enumerate(rectangle_layout[i]):
+            rect_text = plate.get_textbox(rect, textpage=textpage).strip()
+            if "CATEGORY" in rect_text:
+                category_rect = rect
+                category_rect_i, category_rect_j = (i, j)
+
+    if category_rect is None:
+        raise ValueError("Unable to find CATEGORY box")
+
+    # Verify that the boxes next to category are A, B, C, D like we expect.
+    category_boxes = []
+    for i, letter in enumerate(CATEGORIES):
+        letter_rect = rectangle_layout[category_rect_i][category_rect_j + 1 + i]
+        letter_text = plate.get_textbox(letter_rect, textpage=textpage).strip()
+        if letter_text != letter:
+            raise ValueError(
+                f"letter {i} after CATEGORY should be {letter}, was {letter_text}"
+            )
+        category_boxes.append(letter_rect)
+
+    # Grab the first approach name.
+    all_minimums = []
+    # First set of minimums are the default, no conditions.
+    condition = None
+
+    for i in range(category_rect_i + 1, len(rectangle_layout)):
+        approach_name_rect = rectangle_layout[i][category_rect_j]
+        # Should be the same size as the category cell.
+        if int(approach_name_rect.width) != int(category_rect.width):
+            break
+        approach_name = plate.get_textbox(approach_name_rect, textpage=textpage)
+        # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
+        # LNAV/VNAV being split over two lines.
+        approach_name = approach_name.replace("MDA", "").replace("DA", "")
+        approach_name = (
+            approach_name.replace("\nVNAV", "VNAV").replace("\n", " ").strip()
+        )
+
+        # If this is Circling with a C, just denote that it's circling with
+        # extended protected area.
+        if (
+            "CIRCLING" in approach_name
+            and (" C" in approach_name)
+            or ("C " in approach_name)
+        ):
+            approach_name = "CIRCLING (Expanded Radius)"
+
+        minimums_per_category = []
+        # Now iterate through the minimums values, up to 4 boxes.
+        num_minimums = 0
+        j = 0
+        while num_minimums < 4:
+            minimums_box = rectangle_layout[i][category_rect_j + 1 + j]
+            minimums = extract_minimums_from_text_box(
+                minimums_box, approach_name, plate
+            )
+            # Check the width of the minimums box to see how many categories it
+            # covers.
+            num_categories_covered = int(
+                round(minimums_box.width / category_boxes[0].width, 0)
+            )
+            for _ in range(num_categories_covered):
+                minimums_per_category.append(minimums)
+                num_minimums += 1
+            j += 1
+
+        cat_a, cat_b, cat_c, cat_d = minimums_per_category
+        all_minimums.append(
+            ApproachCategory(
+                approach_name, cat_a, cat_b, cat_c, cat_d, condition=condition
+            )
+        )
+
+    return all_minimums
+
+
+def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
+    # For circling minimums, we expect a second line below for the HAA
+    # (Height Above Airport) during circling, but we don't really need that
+    # information so only use the top half of the rectangle.
+    if "CIRCLING" in minimum_type:
+        box = pymupdf.Rect(
+            box.top_left, box.bottom_right - pymupdf.Point(0, box.height / 2)
+        )
+
+    raw_text = plate.get_text(option="rawdict", clip=box)
+    # We will iterate over the minimums character-by-character sorted by x
+    # coordinate.
+    letters = []
+    for block in raw_text["blocks"]:
+        for line in block["lines"]:
+            for span in line["spans"]:
+                for char in span["chars"]:
+                    letters.append(char)
+
+    # Sort by x-cordinate.
+    letters.sort(key=lambda c: c["origin"][0])
+
+    # Gets set to visibility or rvr depending on what we're expecting next.
+    next_number = None
+    altitude = ""
+    # Scan for the altitude first.
+    for i, letter in enumerate(letters):
+        # Dash separates altitude from visibility
+        if letter["c"] == "-":
+            next_number = "visibility"
+            break
+        # Slash separates rvr from visibility
+        if letter["c"] == "/":
+            next_number = "rvr"
+            break
+        altitude += letter["c"]
+
+    # weird, no altitude or rvr seperator, something must have gone wrong.
+    if next_number is None:
+        raise ValueError("No slash or dash in minimums box")
+
+    # Next two characters are either visibility in a fraction, so '1' and '2'
+    # represents 1/2 mile visibility.
+    #
+    # Or two RVR characters in 100s of feet, so '2' and '2' would be 2200 feet.
+    # Only complication is, visibility might be a single character like '2' to
+    # represent 2 miles.
+    #
+    # Hence we check if the next two characters are physically close.
+    assert i < len(letters)
+    # Put in the first visibility/rvr char.
+    visibility_or_rvr = letters[i + 1]["c"]
+    if i + 2 < len(letters):
+        # Two characters, check their closeness.
+        previous_letter_origin = pymupdf.Point(letters[i + 1]["origin"])
+        next_letter_origin = pymupdf.Point(letters[i + 2]["origin"])
+
+        if previous_letter_origin.distance_to(next_letter_origin) < 2:
+            visibility_or_rvr += letters[i + 2]["c"]
+
+    rvr = None
+    visibility = None
+
+    if next_number == "visibility":
+        visibility = visibility_or_rvr
+        if len(visibility) == 2:
+            visibility = f"{visibility[0]}/{visibility[1]}"
+    elif next_number == "rvr":
+        rvr = f"{visibility}00"
+
+    return ApproachMinimum(altitude=altitude, rvr=rvr, visibility=visibility)
+
+
+def pymupdf_extracted_words_to_string(words):
+    """Joins a list of extracted words from pymudpf which are a list of tuples
+    of the form `(x0, y0, x1, y1, "word", block_no, line_no, word_no)`
+    into a string of the words.
+    """
+    return " ".join([w[4].strip() for w in words])
