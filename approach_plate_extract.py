@@ -1,92 +1,6 @@
+from plate_analyzer import segmentation
+
 import pymupdf
-
-
-"""
-Takes the plate pdf and returns a list of each Rectangle in the plate.
-
-If debug is true, outputs a `segmented.png` with each box in the pdf highlighted
-and marked with its index.
-"""
-def segment_plate_into_boxes(plate, drawings, debug=False):
-    # Create a list of vertical and horizontal lines throughout the page.
-    # Internally these are pymupdf.Rect instances. 
-    horizontal_lines = []
-    vertical_lines = []
-
-    for i, path in enumerate(drawings):
-        if i == 1530:
-            print(path)
-
-        # Very thick lines are usually arrows, not seperators.
-        if path["width"] is not None and (path["width"] > 1.0):
-            continue
-        # The lines and rectangles only have one draw-call.
-        if len(path["items"]) != 1:
-            continue
-        item = path["items"][0]
-
-        # If it's a quad with 4 points and they line up, treat it like a rectangle.
-        if item[0] == "qu" and item[1].is_rectangular:
-            item = ("re", pymupdf.Rect(item[1].ul, item[1].lr))
-
-        if item[0] == "l":  # line
-            # Check if it's a horizontal line.
-            if item[1].x == item[2].x:
-                horizontal_lines.append(
-                    pymupdf.Rect(item[1], item[2])
-                )
-            # Check if it's a vertical line.
-            elif item[1].y == item[2].y:
-                vertical_lines.append(
-                    pymupdf.Rect(item[1], item[2])
-                )
-            # Ignore non-straight lines.
-            else:
-                continue
-
-        elif item[0] == "re":  # rectangle
-            # Rectangles have two vertical and two horizontal lines.
-            horizontal_lines.append(
-                pymupdf.Rect(item[1].top_left, item[1].top_right)
-            )
-            horizontal_lines.append(
-                pymupdf.Rect(item[1].bottom_left, item[1].bottom_right)
-            )
-            vertical_lines.append(
-                pymupdf.Rect(item[1].top_left, item[1].bottom_left)
-            )
-            vertical_lines.append(
-                pymupdf.Rect(item[1].top_right, item[1].bottom_right)
-            )
-        else:
-            continue
-
-    for rect in horizontal_lines:
-        rect.normalize().round()
-    for rect in vertical_lines:
-        rect.normalize().round()
-
-    print(vertical_lines)
-
-
-    if debug:
-        segmented = pymupdf.Document()
-        outpage = segmented.new_page(width=plate.rect.width, height=plate.rect.height)
-
-        shape = outpage.new_shape()
-        for line in horizontal_lines:
-            shape.draw_line(line.top_left, line.bottom_right)
-            shape.finish(
-                color=(0,0,0),  # line color
-            )
-        for line in vertical_lines:
-            shape.draw_line(line.top_left, line.bottom_right)
-            shape.finish(
-                color=(0,0,0),  # line color
-            )
-        shape.commit()
-
-        outpage.get_pixmap(dpi=800).save("segmented.png")
 
 
 def extract_information_from_plate(plate_path, debug=False):
@@ -94,7 +8,7 @@ def extract_information_from_plate(plate_path, debug=False):
     plate = pdf[0]
 
     drawings = plate.get_drawings()
-    segment_plate_into_boxes(plate, drawings, debug=debug)
+    segmentation.segment_plate_into_boxes(plate, drawings, debug=debug)
     return
 
     drawing_clusters = plate.cluster_drawings(drawings=drawings)

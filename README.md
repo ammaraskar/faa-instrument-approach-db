@@ -34,6 +34,10 @@ cursed thing, you can view one here: https://www.faa.gov/aero_docs/acifp/2015121
 
 3. Extract information from each segmented area such as the minimums.
 
+## Development
+
+Run tests with `python -m pytest`
+
 ### Notes:
 
 [Avare](https://github.com/apps4av/avare?tab=readme-ov-file) does geo-referenced
