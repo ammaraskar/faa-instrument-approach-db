@@ -22,7 +22,9 @@ class SegmentedPlate:
     approach_minimums_boxes: List[pymupdf.Rect]
 
 
-def extract_text_from_segmented_plate(plate: pymupdf.Page, textpage, rectangles: List[pymupdf.Rect], debug=False) -> SegmentedPlate:
+def extract_text_from_segmented_plate(
+    plate: pymupdf.Page, textpage, rectangles: List[pymupdf.Rect], debug=False
+) -> SegmentedPlate:
     # Put the rectangles into a sparse 2d array by their y and then x positions
     # on the page:
     #
@@ -50,7 +52,7 @@ def extract_text_from_segmented_plate(plate: pymupdf.Page, textpage, rectangles:
 
     approach_course_box = rectangle_layout[0][1]
     approach_text = plate.get_textbox(approach_course_box, textpage=textpage).strip()
-    assert 'APP CRS' in approach_text
+    assert "APP CRS" in approach_text
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.
@@ -58,7 +60,7 @@ def extract_text_from_segmented_plate(plate: pymupdf.Page, textpage, rectangles:
     for i in range(0, 3):
         for rect in rectangle_layout[i]:
             rect_text = plate.get_textbox(rect, textpage=textpage)
-            if 'MISSED APPROACH' in rect_text:
+            if "MISSED APPROACH" in rect_text:
                 missed_approach_rect = rect
 
     if missed_approach_rect is None:
@@ -67,19 +69,21 @@ def extract_text_from_segmented_plate(plate: pymupdf.Page, textpage, rectangles:
     # things like:
     #   'direct CELSY and hold.  \nMISSED APPROACH: Climb to 4200'.
     # Therefore, re-extract the text with sorting.
-    missed_approach_text = plate.get_text(option='words', sort=True,
-                                          clip=missed_approach_rect)
-    missed_approach_text = ' '.join([m[4].strip() for m in missed_approach_text])
+    missed_approach_text = plate.get_text(
+        option="words", sort=True, clip=missed_approach_rect
+    )
+    missed_approach_text = " ".join([m[4].strip() for m in missed_approach_text])
 
     # Comments box will be around half the width of the document, and its bottom
     # will line up with the missed approach box.
     comments_box = None
     for i in (1, 2):
         for rect in rectangle_layout[i]:
-            if rect.width > (plate.rect.width * 0.4) and \
-                int(rect.bottom_left.y) == int(missed_approach_rect.bottom_left.y):
-                    comments_box = rect
-                    break
+            if rect.width > (plate.rect.width * 0.4) and int(rect.bottom_left.y) == int(
+                missed_approach_rect.bottom_left.y
+            ):
+                comments_box = rect
+                break
     if comments_box is None:
         raise ValueError("Could not find comments box")
     # The left side of the comments box will have a "T" for non-standard takeoff
@@ -87,25 +91,46 @@ def extract_text_from_segmented_plate(plate: pymupdf.Page, textpage, rectangles:
     non_standard_takeoff_minimums = False
     non_standard_alternative_requirements = False
 
-    left_side_comments = pymupdf.Rect(comments_box.top_left, comments_box.bottom_left + pymupdf.Point(10, 0))
+    left_side_comments = pymupdf.Rect(
+        comments_box.top_left, comments_box.bottom_left + pymupdf.Point(10, 0)
+    )
     left_side_text = plate.get_textbox(rect=left_side_comments, textpage=textpage)
-    if 'A' in left_side_text:
+    if "A" in left_side_text:
         non_standard_takeoff_minimums = True
-    if 'T' in left_side_text:
+    if "T" in left_side_text:
         non_standard_alternative_requirements = True
 
-    right_side_comments = pymupdf.Rect(left_side_comments.top_right, comments_box.bottom_right)
-    comments_text = plate.get_text(option='words', sort=True, clip=right_side_comments)
-    comments_text = ' '.join([m[4].strip() for m in comments_text])
-    
-    comments = PlateComments(non_standard_takeoff_minimums,
-                             non_standard_alternative_requirements,
-                             comments=comments_text)
+    right_side_comments = pymupdf.Rect(
+        left_side_comments.top_right, comments_box.bottom_right
+    )
+    comments_text = plate.get_text(option="words", sort=True, clip=right_side_comments)
+    comments_text = " ".join([m[4].strip() for m in comments_text])
 
+    comments = PlateComments(
+        non_standard_takeoff_minimums,
+        non_standard_alternative_requirements,
+        comments=comments_text,
+    )
 
     # If there is a required equipment box, it will be a narrow one above the
     # comments.
     required_equipment = None
+    for i in (0, 1, 2):
+        for rect in rectangle_layout[i]:
+            if (
+                rect != comments_box
+                and int(rect.width - comments_box.width) == 0
+                and rect.top_left.y > comments_box.top_left.y
+            ):
+                required_equipment_box = rect
+                break
+
+    if required_equipment_box:
+        required_equipment = plate.get_text(
+            option="words", sort=True, clip=required_equipment_box
+        )
+        required_equipment = " ".join([m[4].strip() for m in required_equipment])
+        required_equipment = (required_equipment_box, required_equipment)
 
     return SegmentedPlate(
         approach_course=(approach_course_box, approach_text),

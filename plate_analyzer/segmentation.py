@@ -23,7 +23,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     and marked with its index.
     """
     # Create a list of lines throughout the page. Internally these are
-    # pymupdf.Rect instances. 
+    # pymupdf.Rect instances.
     lines = []
 
     for path in drawings:
@@ -46,10 +46,22 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
                 lines.append(line_segment_as_rect_from_points(item[1], item[2]))
         elif item[0] == "re":  # rectangle
             # Rectangles have two vertical and two horizontal lines.
-            lines.append(line_segment_as_rect_from_points(item[1].top_left, item[1].bottom_left))
-            lines.append(line_segment_as_rect_from_points(item[1].top_right, item[1].bottom_right))
-            lines.append(line_segment_as_rect_from_points(item[1].top_left, item[1].top_right))
-            lines.append(line_segment_as_rect_from_points(item[1].bottom_left, item[1].bottom_right))
+            lines.append(
+                line_segment_as_rect_from_points(item[1].top_left, item[1].bottom_left)
+            )
+            lines.append(
+                line_segment_as_rect_from_points(
+                    item[1].top_right, item[1].bottom_right
+                )
+            )
+            lines.append(
+                line_segment_as_rect_from_points(item[1].top_left, item[1].top_right)
+            )
+            lines.append(
+                line_segment_as_rect_from_points(
+                    item[1].bottom_left, item[1].bottom_right
+                )
+            )
         else:
             continue
 
@@ -93,15 +105,22 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     # Visually dump the segmented areas in debug mode.
     if debug:
         import random
+
         shape = outpage.new_shape()
         # Draw all segmented boxes.
         for rect in segments:
             shape.draw_rect(rect)
-            shape.finish(color=(1, 0, 0), fill=(random.random(), random.random(), random.random()))
+            shape.finish(
+                color=(1, 0, 0),
+                fill=(random.random(), random.random(), random.random()),
+            )
         shape.commit()
         # Label the center of all the rectangles.
         for i, rect in enumerate(segments):
-            outpage.insert_text(rect.top_left + pymupdf.Point(rect.width / 2.0, rect.height / 2.0), str(i))
+            outpage.insert_text(
+                rect.top_left + pymupdf.Point(rect.width / 2.0, rect.height / 2.0),
+                str(i),
+            )
         outpage.get_pixmap(dpi=400).save("segmented.png")
 
     return segments
