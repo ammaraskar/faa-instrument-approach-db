@@ -8,8 +8,9 @@ import pytest
 import plate_analyzer
 
 
-TEST_DIR = Path(__file__).parent
-TEST_PLATE = TEST_DIR / ".." / "test_data" / "05035R7.PDF"
+TEST_DATA_DIR = Path(__file__).parent / ".." / "test_data"
+TEST_PLATE = TEST_DATA_DIR / "05035R7.pdf"
+ATHENS_TEST_PLATE = TEST_DATA_DIR / "00983ILD27.pdf"
 
 
 @pytest.fixture(scope="session")
@@ -62,3 +63,56 @@ def test_extract_gets_correct_comments(extracted_information):
     assert comments.non_standard_alternative_requirements == True
     assert "Circling NA for Cat D south of Rwy 7-25" in comments.comments
     assert "LNAV/VNAV NA below -21" in comments.comments
+
+
+@pytest.fixture(scope="session")
+def athens_info():
+    return plate_analyzer.extract_information_from_plate(ATHENS_TEST_PLATE)
+
+
+def test_extract_gets_correct_missed_approach_for_athens(athens_info):
+    missed_instructions = athens_info.missed_approach_instructions[1]
+    assert missed_instructions == (
+        "MISSED APPROACH: Climb to 1500 then climbing left turn to 2500 on heading "
+        "060° and AHN VOR/DME R-092 to VESTO INT/ AHN 23.6 DME and hold."
+    )
+
+
+def test_extract_gets_correct_comments_for_athens(athens_info):
+    comments = athens_info.comments
+    assert comments.non_standard_takeoff_minimums == True
+    assert comments.non_standard_alternative_requirements == True
+    assert "Night landing: Rwy 2, 20 NA." in comments.comments
+    assert "Simultaneous reception of I-AHN and AHN DME Required." in comments.comments
+    assert "VDP NA with Winder altimeter setting." in comments.comments
+
+
+def test_extract_gets_correct_approach_course_for_athens(athens_info):
+    assert athens_info.approach_course[1] == "274°"
+
+
+def test_extract_gets_correct_minimums_for_athens(athens_info):
+    assert len(athens_info.approach_minimums) == 3
+
+    ils_approach = athens_info.approach_minimums[0]
+    assert ils_approach.approach_type == "S-ILS 27"
+    assert ils_approach.cat_a.altitude == "1013"
+    assert ils_approach.cat_a.visibility == "3/4"
+    assert ils_approach.cat_d == ils_approach.cat_a
+
+    loc_approach = athens_info.approach_minimums[1]
+    assert loc_approach.approach_type == "S-LOC 27"
+    assert loc_approach.cat_a.altitude == "1160"
+    assert loc_approach.cat_a.visibility == "3/4"
+    assert ils_approach.cat_d == ils_approach.cat_a
+
+    circling_approach = athens_info.approach_minimums[2]
+    assert circling_approach.approach_type == "CIRCLING (Expanded Radius)"
+    assert circling_approach.cat_a.altitude == "1260"
+    assert circling_approach.cat_a.visibility == "1"
+    assert circling_approach.cat_b.altitude == "1280"
+    assert circling_approach.cat_b.visibility == "1"
+    assert circling_approach.cat_c.altitude == "1320"
+    assert circling_approach.cat_c.visibility == "1 1/2"
+    assert circling_approach.cat_d.altitude == "1460"
+    assert circling_approach.cat_d.visibility == "2"

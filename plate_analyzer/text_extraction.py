@@ -69,8 +69,11 @@ def extract_text_from_segmented_plate(
         rectangle_layout[-1].append(r)
 
     approach_course_box = rectangle_layout[0][1]
-    approach_text = plate.get_textbox(approach_course_box, textpage=textpage).strip()
-    assert "APP CRS" in approach_text
+    approach_text = (
+        plate.get_textbox(approach_course_box, textpage=textpage)
+        .replace("APP CRS", "")
+        .strip()
+    )
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.

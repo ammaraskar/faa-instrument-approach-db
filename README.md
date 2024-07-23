@@ -5,9 +5,9 @@ Database of instrument approaches generated from parsing FAA Approach plates.
 ## Why not use CIFP?
 
 As neat as the free FAA [CIFP](https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/cifp/download/)
-is, it lack some approaches in the `Not_In_CIFP.xlsx` (random internet comment
-said these are ones which the FAA has not certified to meet the ARNIC424
-standards).
+(Coded Instrument Flight Procedures) is, it lack some approaches in the 
+`Not_In_CIFP.xlsx` (random internet comment said these are ones which the FAA
+has not certified to meet the ARNIC424 standards).
 
 It also lacks some vital information such as the approach minimums. As per an
 aeuronautical inquiry, the FAA confirmed the CIFP does not have minimums and
