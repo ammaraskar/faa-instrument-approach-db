@@ -141,7 +141,7 @@ def extract_text_from_segmented_plate(
             if (
                 rect != comments_box
                 and int(rect.width - comments_box.width) == 0
-                and rect.top_left.y > comments_box.top_left.y
+                and rect.top_left.y < comments_box.top_left.y
             ):
                 required_equipment = rect
                 break
@@ -262,10 +262,17 @@ def extract_minimums(
 
 
 def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
-    # For circling minimums, we expect a second line below for the HAA
+    # For circling minimums, we expect a second line for the HAA
     # (Height Above Airport) during circling, but we don't really need that
-    # information so only use the top half of the rectangle.
-    if "CIRCLING" in minimum_type:
+    # information. So only get letters from one half of the rectangle, either
+    # the bottom or left side depending on the width of the box.
+    if "CIRCLING" in minimum_type and ((box.width / box.height) > 5):
+        # Very horizontal box, HHA is on the right.
+        box = pymupdf.Rect(
+            box.top_left, box.bottom_right - pymupdf.Point(box.width * 0.5, 0)
+        )
+    elif "CIRCLING" in minimum_type and ((box.width / box.height) <= 5):
+        # Regular box, HHA is on the bottom.
         box = pymupdf.Rect(
             box.top_left, box.bottom_right - pymupdf.Point(0, box.height * 0.6)
         )

@@ -84,7 +84,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     samples = pixmap.samples_mv
     # Threshold the image and then have scikit make labels.
     img = np.asarray(samples).reshape((pixmap.h, pixmap.w))
-    #skimage.io.imsave("lines.png", img)
+    # skimage.io.imsave("lines.png", img)
     img_grayscale = img.copy()
     img_grayscale[img_grayscale < 10] = 0
 
