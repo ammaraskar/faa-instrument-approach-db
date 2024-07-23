@@ -28,6 +28,8 @@ cursed thing, you can view one here: https://www.faa.gov/aero_docs/acifp/2015121
 1. Draw just straight lines and rectangles from the PDF. This provides a basic
    tabular structure.
 
+   ![Example of page with lines](test_data/lines.png)
+
 2. Segment the lines/rectangles into different areas based on relative sizes.
    This includes areas such as the missed approach instructions, runway/airport
    information, plan view, communication boxes, profile box, minimums etc.
