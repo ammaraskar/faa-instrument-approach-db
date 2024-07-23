@@ -16,4 +16,5 @@ def extract_information_from_plate(plate_path, debug=False):
     text_info = text_extraction.extract_text_from_segmented_plate(
         plate, textpage, rectangles, debug=debug
     )
-    print(text_info)
+    for appch in text_info.approach_minimums:
+        print(appch)

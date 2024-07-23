@@ -254,7 +254,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     # information so only use the top half of the rectangle.
     if "CIRCLING" in minimum_type:
         box = pymupdf.Rect(
-            box.top_left, box.bottom_right - pymupdf.Point(0, box.height / 2)
+            box.top_left, box.bottom_right - pymupdf.Point(0, box.height * 0.6)
         )
 
     raw_text = plate.get_text(option="rawdict", clip=box)
@@ -289,34 +289,33 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     if next_number is None:
         raise ValueError("No slash or dash in minimums box")
 
-    # Next two characters are either visibility in a fraction, so '1' and '2'
-    # represents 1/2 mile visibility.
-    #
-    # Or two RVR characters in 100s of feet, so '2' and '2' would be 2200 feet.
-    # Only complication is, visibility might be a single character like '2' to
-    # represent 2 miles.
-    #
-    # Hence we check if the next two characters are physically close.
-    assert i < len(letters)
-    # Put in the first visibility/rvr char.
-    visibility_or_rvr = letters[i + 1]["c"]
-    if i + 2 < len(letters):
-        # Two characters, check their closeness.
-        previous_letter_origin = pymupdf.Point(letters[i + 1]["origin"])
-        next_letter_origin = pymupdf.Point(letters[i + 2]["origin"])
-
-        if previous_letter_origin.distance_to(next_letter_origin) < 2:
-            visibility_or_rvr += letters[i + 2]["c"]
-
     rvr = None
     visibility = None
 
     if next_number == "visibility":
-        visibility = visibility_or_rvr
-        if len(visibility) == 2:
-            visibility = f"{visibility[0]}/{visibility[1]}"
+        # A visibility will either be a single digit like '1', a fraction like ½
+        # or a mixed fraction like 1 ½.
+        first_number = letters[i + 1]
+        visibility = first_number["c"]
+        # Check if the first number is a fraction numerator by checking its
+        # size against the altitude number.
+        first_number_bbox = pymupdf.Rect(first_number["bbox"])
+        first_letter_bbox = pymupdf.Rect(letters[0]["bbox"])
+        if first_number_bbox.height < first_letter_bbox.height * 0.8:
+            visibility = f'{visibility}/{letters[i + 2]['c']}'
+        elif len(letters) > (i + 2):
+            # First number was not a fraction, so this could be a single number
+            # or a mixed fraction. Check if the next number is a fraction.
+            second_number_bbox = pymupdf.Rect(letters[i + 2]["bbox"])
+            if second_number_bbox.height < first_letter_bbox.height * 0.8:
+                # Okay, next should be a fraction since it's close to the first
+                # number.
+                visibility = f'{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}'
     elif next_number == "rvr":
-        rvr = f"{visibility}00"
+        # RVR could be up to two numbers
+        pass
+    else:
+        raise NotImplemented()
 
     return ApproachMinimum(altitude=altitude, rvr=rvr, visibility=visibility)
 
