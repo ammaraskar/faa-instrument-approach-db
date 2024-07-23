@@ -30,40 +30,40 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
         # Very thick lines are usually arrows, not seperators.
         if path["width"] is not None and (path["width"] > 2.0):
             continue
-        # The lines and rectangles only have one draw call.
-        if len(path["items"]) != 1:
-            continue
-        item = path["items"][0]
 
         # If it's a quad with 4 points and they line up, treat it like a rectangle.
-        if item[0] == "qu" and item[1].is_rectangular:
-            item = ("re", pymupdf.Rect(item[1].ul, item[1].lr))
+        for item in path["items"]:
+            if item[0] == "qu" and item[1].is_rectangular:
+                item = ("re", pymupdf.Rect(item[1].ul, item[1].lr))
 
-        if item[0] == "l":  # line
-            if item[1].x == item[2].x:
-                lines.append(line_segment_as_rect_from_points(item[1], item[2]))
-            elif item[1].y == item[2].y:
-                lines.append(line_segment_as_rect_from_points(item[1], item[2]))
-        elif item[0] == "re":  # rectangle
-            # Rectangles have two vertical and two horizontal lines.
-            lines.append(
-                line_segment_as_rect_from_points(item[1].top_left, item[1].bottom_left)
-            )
-            lines.append(
-                line_segment_as_rect_from_points(
-                    item[1].top_right, item[1].bottom_right
+            if item[0] == "l":  # line
+                if item[1].x == item[2].x:
+                    lines.append(line_segment_as_rect_from_points(item[1], item[2]))
+                elif item[1].y == item[2].y:
+                    lines.append(line_segment_as_rect_from_points(item[1], item[2]))
+            elif item[0] == "re":  # rectangle
+                # Rectangles have two vertical and two horizontal lines.
+                lines.append(
+                    line_segment_as_rect_from_points(item[1].top_left, item[1].bottom_left)
                 )
-            )
-            lines.append(
-                line_segment_as_rect_from_points(item[1].top_left, item[1].top_right)
-            )
-            lines.append(
-                line_segment_as_rect_from_points(
-                    item[1].bottom_left, item[1].bottom_right
+                lines.append(
+                    line_segment_as_rect_from_points(
+                        item[1].top_right, item[1].bottom_right
+                    )
                 )
-            )
-        else:
-            continue
+                lines.append(
+                    line_segment_as_rect_from_points(item[1].top_left, item[1].top_right)
+                )
+                lines.append(
+                    line_segment_as_rect_from_points(
+                        item[1].bottom_left, item[1].bottom_right
+                    )
+                )
+            else:
+                continue
+
+    # Filter out short lines.
+    lines = [line for line in lines if line.width > 5 or line.height > 5]
 
     # Create an image with just the horizontal and vertical lines so we can
     # segment out the rectangles.
@@ -80,6 +80,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     samples = pixmap.samples_mv
     # Threshold the image and then have scikit make labels.
     img = np.asarray(samples).reshape((pixmap.h, pixmap.w))
+    #skimage.io.imsave("lines.png", img)
     img_grayscale = img.copy()
     img_grayscale[img_grayscale < 10] = 0
 

@@ -205,10 +205,9 @@ def extract_minimums(
         approach_name = plate.get_textbox(approach_name_rect, textpage=textpage)
         # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
         # LNAV/VNAV being split over two lines.
-        approach_name = approach_name.replace("MDA", "").replace("DA", "")
-        approach_name = (
-            approach_name.replace("\nVNAV", "VNAV").replace("\n", " ").strip()
-        )
+        approach_name = approach_name.replace("MDA", "").replace("DA", "").strip()
+        if 'LNAV' in approach_name and 'VNAV' in approach_name:
+            approach_name = 'LNAV/VNAV'
 
         # If this is Circling with a C, just denote that it's circling with
         # extended protected area.
@@ -285,7 +284,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
             break
         altitude += letter["c"]
 
-    # weird, no altitude or rvr seperator, something must have gone wrong.
+    # Weird, no altitude or rvr seperator. something must have gone wrong.
     if next_number is None:
         raise ValueError("No slash or dash in minimums box")
 
