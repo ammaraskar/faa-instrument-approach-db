@@ -180,6 +180,21 @@ def extract_minimums(
 
     if category_rect is None:
         raise ValueError("Unable to find CATEGORY box")
+    
+    # Filter out any rectangles that are above or the left of the minimums.
+    filtered_rectangles = []
+    for row in rectangle_layout:
+        filtered_row = []
+        for rect in row:
+            if (rect.top_left.x + 0.5) > category_rect.top_left.x and (rect.top_left.y + 0.5) > category_rect.top_left.y:
+                filtered_row.append(rect)
+        if len(filtered_row) != 0:
+            filtered_rectangles.append(filtered_row)
+
+    rectangle_layout = filtered_rectangles
+    category_rect_i, category_rect_j = (0, 0)
+
+    print(rectangle_layout)
 
     # Verify that the boxes next to category are A, B, C, D like we expect.
     category_boxes = []
@@ -201,6 +216,7 @@ def extract_minimums(
         approach_name_rect = rectangle_layout[i][category_rect_j]
         # Should be the same size as the category cell.
         if int(approach_name_rect.width) != int(category_rect.width):
+            print("Breaking approach loop, text: ", plate.get_textbox(approach_name_rect, textpage=textpage))
             break
         approach_name = plate.get_textbox(approach_name_rect, textpage=textpage)
         # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
@@ -209,8 +225,8 @@ def extract_minimums(
         if "LNAV" in approach_name and "VNAV" in approach_name:
             approach_name = "LNAV/VNAV"
 
-        # If this is Circling with a little C, just denote that it's circling
-        # with extended protected area.
+        # If this is Circling with an additional C in the box, denote that it's
+        # circling with extended protected area.
         if "CIRCLING" in approach_name and (
             "C" in approach_name.replace("CIRCLING", "")
         ):
@@ -223,7 +239,6 @@ def extract_minimums(
         while num_minimums < 4:
             minimums_box = rectangle_layout[i][category_rect_j + 1 + j]
             print(approach_name)
-            print(rectangle_layout[i])
             minimums = extract_minimums_from_text_box(
                 minimums_box, approach_name, plate
             )
@@ -268,6 +283,8 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
 
     # Sort by x-cordinate.
     letters.sort(key=lambda c: c["origin"][0])
+    # Remove spaces.
+    letters = [l for l in letters if l["c"] != " "]
 
     # Gets set to visibility or rvr depending on what we're expecting next.
     next_number = None
