@@ -37,7 +37,7 @@ class SegmentedPlate:
     approach_course: Tuple[pymupdf.Rect, str]
 
     required_equipment: Optional[Tuple[pymupdf.Rect, str]]
-    comments: Tuple[pymupdf.Rect, PlateComments]
+    comments: PlateComments
     missed_approach_instructions: Tuple[pymupdf.Rect, str]
 
     approach_minimums: List[ApproachCategory]
@@ -62,7 +62,7 @@ def extract_text_from_segmented_plate(
     rectangle_layout = []
     previous_y = -1
     for r in rectangles:
-        rectangle_y = round(r.top_left.y, 0)
+        rectangle_y = round(r.top_left.y, 1)
         if previous_y != rectangle_y:
             rectangle_layout.append([])
             previous_y = rectangle_y
@@ -206,15 +206,13 @@ def extract_minimums(
         # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
         # LNAV/VNAV being split over two lines.
         approach_name = approach_name.replace("MDA", "").replace("DA", "").strip()
-        if 'LNAV' in approach_name and 'VNAV' in approach_name:
-            approach_name = 'LNAV/VNAV'
+        if "LNAV" in approach_name and "VNAV" in approach_name:
+            approach_name = "LNAV/VNAV"
 
-        # If this is Circling with a C, just denote that it's circling with
-        # extended protected area.
-        if (
-            "CIRCLING" in approach_name
-            and (" C" in approach_name)
-            or ("C " in approach_name)
+        # If this is Circling with a little C, just denote that it's circling
+        # with extended protected area.
+        if "CIRCLING" in approach_name and (
+            "C" in approach_name.replace("CIRCLING", "")
         ):
             approach_name = "CIRCLING (Expanded Radius)"
 
@@ -224,6 +222,8 @@ def extract_minimums(
         j = 0
         while num_minimums < 4:
             minimums_box = rectangle_layout[i][category_rect_j + 1 + j]
+            print(approach_name)
+            print(rectangle_layout[i])
             minimums = extract_minimums_from_text_box(
                 minimums_box, approach_name, plate
             )
@@ -286,6 +286,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
 
     # Weird, no altitude or rvr seperator. something must have gone wrong.
     if next_number is None:
+        print(minimum_type, letters)
         raise ValueError("No slash or dash in minimums box")
 
     rvr = None
@@ -301,7 +302,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
         first_number_bbox = pymupdf.Rect(first_number["bbox"])
         first_letter_bbox = pymupdf.Rect(letters[0]["bbox"])
         if first_number_bbox.height < first_letter_bbox.height * 0.8:
-            visibility = f'{visibility}/{letters[i + 2]['c']}'
+            visibility = f"{visibility}/{letters[i + 2]['c']}"
         elif len(letters) > (i + 2):
             # First number was not a fraction, so this could be a single number
             # or a mixed fraction. Check if the next number is a fraction.
@@ -309,7 +310,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
             if second_number_bbox.height < first_letter_bbox.height * 0.8:
                 # Okay, next should be a fraction since it's close to the first
                 # number.
-                visibility = f'{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}'
+                visibility = f"{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}"
     elif next_number == "rvr":
         # RVR could be up to two numbers
         pass

@@ -44,7 +44,9 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
             elif item[0] == "re":  # rectangle
                 # Rectangles have two vertical and two horizontal lines.
                 lines.append(
-                    line_segment_as_rect_from_points(item[1].top_left, item[1].bottom_left)
+                    line_segment_as_rect_from_points(
+                        item[1].top_left, item[1].bottom_left
+                    )
                 )
                 lines.append(
                     line_segment_as_rect_from_points(
@@ -52,7 +54,9 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
                     )
                 )
                 lines.append(
-                    line_segment_as_rect_from_points(item[1].top_left, item[1].top_right)
+                    line_segment_as_rect_from_points(
+                        item[1].top_left, item[1].top_right
+                    )
                 )
                 lines.append(
                     line_segment_as_rect_from_points(
@@ -80,7 +84,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     samples = pixmap.samples_mv
     # Threshold the image and then have scikit make labels.
     img = np.asarray(samples).reshape((pixmap.h, pixmap.w))
-    #skimage.io.imsave("lines.png", img)
+    # skimage.io.imsave("lines.png", img)
     img_grayscale = img.copy()
     img_grayscale[img_grayscale < 10] = 0
 
