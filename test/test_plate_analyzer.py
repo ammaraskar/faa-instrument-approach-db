@@ -12,7 +12,7 @@ TEST_DIR = Path(__file__).parent
 TEST_PLATE = TEST_DIR / ".." / "test_data" / "05035R7.PDF"
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def extracted_information():
     return plate_analyzer.extract_information_from_plate(TEST_PLATE)
 

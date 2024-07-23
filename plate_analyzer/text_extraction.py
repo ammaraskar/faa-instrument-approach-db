@@ -176,30 +176,28 @@ def extract_minimums(
             rect_text = plate.get_textbox(rect, textpage=textpage).strip()
             if "CATEGORY" in rect_text:
                 category_rect = rect
-                category_rect_i, category_rect_j = (i, j)
 
     if category_rect is None:
         raise ValueError("Unable to find CATEGORY box")
-    
+
     # Filter out any rectangles that are above or the left of the minimums.
     filtered_rectangles = []
     for row in rectangle_layout:
         filtered_row = []
         for rect in row:
-            if (rect.top_left.x + 0.5) > category_rect.top_left.x and (rect.top_left.y + 0.5) > category_rect.top_left.y:
+            if (rect.top_left.x + 0.5) > category_rect.top_left.x and (
+                rect.top_left.y + 0.5
+            ) > category_rect.top_left.y:
                 filtered_row.append(rect)
         if len(filtered_row) != 0:
             filtered_rectangles.append(filtered_row)
 
     rectangle_layout = filtered_rectangles
-    category_rect_i, category_rect_j = (0, 0)
-
-    print(rectangle_layout)
 
     # Verify that the boxes next to category are A, B, C, D like we expect.
     category_boxes = []
     for i, letter in enumerate(CATEGORIES):
-        letter_rect = rectangle_layout[category_rect_i][category_rect_j + 1 + i]
+        letter_rect = rectangle_layout[0][i + 1]
         letter_text = plate.get_textbox(letter_rect, textpage=textpage).strip()
         if letter_text != letter:
             raise ValueError(
@@ -212,11 +210,10 @@ def extract_minimums(
     # First set of minimums are the default, no conditions.
     condition = None
 
-    for i in range(category_rect_i + 1, len(rectangle_layout)):
-        approach_name_rect = rectangle_layout[i][category_rect_j]
+    for i in range(1, len(rectangle_layout)):
+        approach_name_rect = rectangle_layout[i][0]
         # Should be the same size as the category cell.
         if int(approach_name_rect.width) != int(category_rect.width):
-            print("Breaking approach loop, text: ", plate.get_textbox(approach_name_rect, textpage=textpage))
             break
         approach_name = plate.get_textbox(approach_name_rect, textpage=textpage)
         # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
@@ -237,8 +234,7 @@ def extract_minimums(
         num_minimums = 0
         j = 0
         while num_minimums < 4:
-            minimums_box = rectangle_layout[i][category_rect_j + 1 + j]
-            print(approach_name)
+            minimums_box = rectangle_layout[i][j + 1]
             minimums = extract_minimums_from_text_box(
                 minimums_box, approach_name, plate
             )
