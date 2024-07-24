@@ -1,5 +1,6 @@
 import pymupdf
 
+import collections
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
 
@@ -34,6 +35,8 @@ class ApproachCategory:
 
 @dataclass
 class SegmentedPlate:
+    approach_name: str
+    airport_name: str
     approach_course: Tuple[pymupdf.Rect, str]
 
     required_equipment: Optional[Tuple[pymupdf.Rect, str]]
@@ -74,6 +77,19 @@ def extract_text_from_segmented_plate(
         .replace("APP CRS", "")
         .strip()
     )
+
+    # Approach title will be on the right side of the page, on the same line
+    # as the approach course.
+    approach_title_area = pymupdf.Rect(
+        approach_course_box.top_right + pymupdf.Point(100, 0),
+        pymupdf.Point(plate.rect.width, approach_course_box.bottom_right.y),
+    )
+    approach_title = plate.get_text(option="words", sort=True, clip=approach_title_area)
+    approach_title = pymupdf_group_words_into_lines_based_on_vertical_position(
+        approach_title
+    )
+    # First line is the approach title, then the airport name.
+    approach_name, airport_name = approach_title
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.
@@ -158,6 +174,8 @@ def extract_text_from_segmented_plate(
     minimums = extract_minimums(rectangle_layout, plate=plate, textpage=textpage)
 
     return SegmentedPlate(
+        approach_name=approach_name,
+        airport_name=airport_name,
         approach_course=(approach_course_box, approach_text),
         required_equipment=required_equipment,
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),
@@ -349,3 +367,18 @@ def pymupdf_extracted_words_to_string(words):
     into a string of the words.
     """
     return " ".join([w[4].strip() for w in words])
+
+
+def pymupdf_group_words_into_lines_based_on_vertical_position(words):
+    """Joins a list of extracted words into lines as above but returns a list
+    of lines, grouping them based on their y-coordinate."""
+    words_grouped_by_y = collections.defaultdict(list)
+
+    for w in words:
+        y1 = int(w[3])
+        words_grouped_by_y[y1].append(w[4].strip())
+
+    lines = []
+    for y in sorted(words_grouped_by_y.keys()):
+        lines.append(" ".join(words_grouped_by_y[y]))
+    return lines
