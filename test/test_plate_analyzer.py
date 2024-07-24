@@ -24,6 +24,18 @@ def test_extract_gets_correct_approach_title(extracted_information):
     assert extracted_information.airport_name == "DUBOIS RGNL (DUJ)"
 
 
+def test_extract_gets_correct_waypoints(extracted_information):
+    assert "TNKEE" in extracted_information.waypoints
+    assert extracted_information.waypoints["TNKEE"].is_initial_approach_fix
+    assert "WNKEE" in extracted_information.waypoints
+    assert extracted_information.waypoints["WNKEE"].is_initial_approach_fix
+    assert "EEYES" in extracted_information.waypoints
+    assert extracted_information.waypoints["EEYES"].is_initial_approach_fix
+    assert extracted_information.waypoints["EEYES"].is_intermediate_fix
+    assert "PLEAZ" in extracted_information.waypoints
+    assert extracted_information.waypoints["PLEAZ"].is_final_approach_fix
+
+
 def test_extract_gets_correct_minimums(extracted_information):
     assert len(extracted_information.approach_minimums) == 4
 
@@ -83,6 +95,15 @@ def athens_info():
 def test_extract_gets_correct_approach_title_for_athens(athens_info):
     assert athens_info.approach_name == "ILS or LOC/DME RWY 27"
     assert athens_info.airport_name == "ATHENS/BEN EPPS(AHN)"
+
+
+def test_extract_gets_correct_waypoints_for_athens(athens_info):
+    assert "BLLDG" in athens_info.waypoints
+    assert athens_info.waypoints["BLLDG"].is_initial_approach_fix
+    assert "VESTO" in athens_info.waypoints
+    assert athens_info.waypoints["VESTO"].is_initial_approach_fix
+    assert "IMAVE" in athens_info.waypoints
+    assert athens_info.waypoints["IMAVE"].is_intermediate_fix
 
 
 def test_extract_gets_correct_requried_equipment_for_athens(athens_info):
@@ -145,6 +166,15 @@ def marin_state_info():
 def test_extract_gets_correct_approach_title_for_martin(marin_state_info):
     assert marin_state_info.approach_name == "VOR or TACAN RWY 15"
     assert marin_state_info.airport_name == "MARTIN STATE (MTN)"
+
+
+def test_extract_gets_correct_waypoints_for_martin(marin_state_info):
+    assert "SLOAF" in marin_state_info.waypoints
+    assert marin_state_info.waypoints["SLOAF"].is_initial_approach_fix
+    assert "CUMBE" in marin_state_info.waypoints
+    assert marin_state_info.waypoints["CUMBE"].is_intermediate_fix
+    assert "GOVES" in marin_state_info.waypoints
+    assert "ZOVAP" in marin_state_info.waypoints
 
 
 def test_extract_gets_correct_required_equipment_for_martin(marin_state_info):

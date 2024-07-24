@@ -2,7 +2,7 @@ import pymupdf
 
 import collections
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 
 @dataclass
@@ -34,10 +34,24 @@ class ApproachCategory:
 
 
 @dataclass
+class Waypoint:
+    is_initial_approach_fix: bool
+    is_intermediate_fix: bool
+    is_final_approach_fix: bool
+
+    def __init__(self):
+        self.is_initial_approach_fix = False
+        self.is_intermediate_fix = False
+        self.is_final_approach_fix = False
+
+
+@dataclass
 class SegmentedPlate:
     approach_name: str
     airport_name: str
     approach_course: Tuple[pymupdf.Rect, str]
+
+    waypoints: Dict[str, Waypoint]
 
     required_equipment: Optional[Tuple[pymupdf.Rect, str]]
     comments: PlateComments
@@ -90,6 +104,9 @@ def extract_text_from_segmented_plate(
     )
     # First line is the approach title, then the airport name.
     approach_name, airport_name = approach_title
+
+    # Get all the waypoints in the plan view.
+    waypoints = extract_all_waypoints_from_plan_view(rectangle_layout, plate)
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.
@@ -177,6 +194,7 @@ def extract_text_from_segmented_plate(
         approach_name=approach_name,
         airport_name=airport_name,
         approach_course=(approach_course_box, approach_text),
+        waypoints=dict(waypoints),
         required_equipment=required_equipment,
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),
         comments=comments,
@@ -382,3 +400,84 @@ def pymupdf_group_words_into_lines_based_on_vertical_position(words):
     for y in sorted(words_grouped_by_y.keys()):
         lines.append(" ".join(words_grouped_by_y[y]))
     return lines
+
+
+# Distance threshold between the (IAF) text to WAYPOINT name text to consider
+# it an IAF. Also used for FAF, IF.
+FIX_TEXT_DISTANCE_THRESHOLD = 25
+
+
+def is_waypoint_text_close_to_approach_type(waypoint_loc, approach_fixes):
+    is_close = False
+    for initial_appraoch_fix in approach_fixes:
+        iaf_location = pymupdf.Point(initial_appraoch_fix[2], initial_appraoch_fix[3])
+        distance = iaf_location.distance_to(waypoint_loc)
+        if distance < FIX_TEXT_DISTANCE_THRESHOLD:
+            is_close = True
+    return is_close
+
+
+def extract_all_waypoints_from_plan_view(rectangle_layout, plate):
+    box = find_plan_view_box(rectangle_layout, plate)
+    words = plate.get_text(option="words", sort=True, clip=box)
+
+    initial_approach_fix_texts = []
+    intermediate_fix_texts = []
+    final_approach_fix_texts = []
+    for w in words:
+        word = w[4].strip()
+        if (not word.startswith("(")) or (not word.endswith(")")):
+            continue
+        if "IAF" in word:
+            initial_approach_fix_texts.append(w)
+        if "IF" in word:
+            intermediate_fix_texts.append(w)
+        if "FAF" in word:
+            final_approach_fix_texts.append(w)
+
+    waypoints = collections.defaultdict(Waypoint)
+    for w in words:
+        word = w[4].strip()
+        # Waypoints are generally 5 uppercase letters.
+        if len(word) != 5 or (not word.isalpha()) or word.upper() != word:
+            continue
+        # See if this is an initial approach fix by looking for the text IAF
+        # nearby.
+        word_location = pymupdf.Point(w[0], w[1])
+
+        is_initial_approach_fix = is_waypoint_text_close_to_approach_type(
+            word_location, initial_approach_fix_texts
+        )
+        is_intermediate_fix = is_waypoint_text_close_to_approach_type(
+            word_location, intermediate_fix_texts
+        )
+        is_final_approach_fix = is_waypoint_text_close_to_approach_type(
+            word_location, final_approach_fix_texts
+        )
+        # Set if the fix is IAF/IF/FAF based on what we saw here, updating any
+        # previous bools.
+        waypoints[word].is_initial_approach_fix |= is_initial_approach_fix
+        waypoints[word].is_intermediate_fix |= is_intermediate_fix
+        waypoints[word].is_final_approach_fix |= is_final_approach_fix
+
+    return waypoints
+
+
+def find_plan_view_box(rectangle_layout, plate) -> pymupdf.Rect:
+    """Find the plan view part of the plate"""
+    # Largest rectangle is probably the plan view.
+    largest_rect = rectangle_layout[0][0]
+
+    for row in rectangle_layout:
+        for rect in row:
+            if rect.get_area() > largest_rect.get_area():
+                largest_rect = rect
+
+    # Just assert that the rectangle is around the middle of the plate, that's
+    # where we expect it to be.
+    assert largest_rect.top_left.y < (plate.rect.height / 2)
+    assert largest_rect.bottom_right.y > (plate.rect.height / 2)
+    assert largest_rect.top_left.x < (plate.rect.width / 2)
+    assert largest_rect.bottom_right.x > (plate.rect.width / 2)
+
+    return largest_rect
