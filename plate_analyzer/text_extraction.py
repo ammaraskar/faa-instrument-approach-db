@@ -1,5 +1,7 @@
 import pymupdf
 
+from . import drawing_extraction
+
 import collections
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict
@@ -61,7 +63,7 @@ class SegmentedPlate:
 
 
 def extract_text_from_segmented_plate(
-    plate: pymupdf.Page, textpage, rectangles: List[pymupdf.Rect], debug=False
+    plate: pymupdf.Page, drawings, textpage, rectangles: List[pymupdf.Rect], debug=False
 ) -> SegmentedPlate:
     # Put the rectangles into a sparse 2d array by their y and then x positions
     # on the page:
@@ -106,7 +108,9 @@ def extract_text_from_segmented_plate(
     approach_name, airport_name = approach_title
 
     # Get all the waypoints in the plan view.
-    waypoints = extract_all_waypoints_from_plan_view(rectangle_layout, plate)
+    plan_view_box = find_plan_view_box(rectangle_layout, plate)
+    waypoints = extract_all_waypoints_from_plan_view(plan_view_box, plate)
+    _ = drawing_extraction.extract_approach_metadata(plan_view_box, plate, drawings, debug=debug)
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.
@@ -417,9 +421,8 @@ def is_waypoint_text_close_to_approach_type(waypoint_loc, approach_fixes):
     return is_close
 
 
-def extract_all_waypoints_from_plan_view(rectangle_layout, plate):
-    box = find_plan_view_box(rectangle_layout, plate)
-    words = plate.get_text(option="words", sort=True, clip=box)
+def extract_all_waypoints_from_plan_view(plan_view_box, plate):
+    words = plate.get_text(option="words", sort=True, clip=plan_view_box)
 
     initial_approach_fix_texts = []
     intermediate_fix_texts = []
