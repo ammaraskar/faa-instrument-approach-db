@@ -53,6 +53,8 @@ class SegmentedPlate:
     airport_name: str
     approach_course: Tuple[pymupdf.Rect, str]
 
+    has_dme_arc: bool
+
     waypoints: Dict[str, Waypoint]
 
     required_equipment: Optional[Tuple[pymupdf.Rect, str]]
@@ -110,7 +112,10 @@ def extract_text_from_segmented_plate(
     # Get all the waypoints in the plan view.
     plan_view_box = find_plan_view_box(rectangle_layout, plate)
     waypoints = extract_all_waypoints_from_plan_view(plan_view_box, plate)
-    _ = drawing_extraction.extract_approach_metadata(plan_view_box, plate, drawings, debug=debug)
+    _ = drawing_extraction.extract_approach_metadata(
+        plan_view_box, plate, drawings, debug=debug
+    )
+    has_dme_arc = has_dme_arc_in_plan_view(plan_view_box, plate)
 
     # Look for "MISSED APPROACH" on rows 0 to 4 for the missed approach
     # instructions.
@@ -198,6 +203,7 @@ def extract_text_from_segmented_plate(
         approach_name=approach_name,
         airport_name=airport_name,
         approach_course=(approach_course_box, approach_text),
+        has_dme_arc=has_dme_arc,
         waypoints=dict(waypoints),
         required_equipment=required_equipment,
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),
@@ -464,6 +470,42 @@ def extract_all_waypoints_from_plan_view(plan_view_box, plate):
         waypoints[word].is_final_approach_fix |= is_final_approach_fix
 
     return waypoints
+
+
+def has_dme_arc_in_plan_view(plan_view_box, plate):
+    """Look for the words 'Arc' in the plan view, this is slightly complicated
+    by the fact that the words can be curved. This means we can't just use
+    pymupdf's word extaction directly to find it.
+    """
+    words = plate.get_text(option="rawdict", sort=True, clip=plan_view_box)
+
+    letter_locations = collections.defaultdict(list)
+
+    for block in words["blocks"]:
+        for line in block["lines"]:
+            for span in line["spans"]:
+                for char in span["chars"]:
+                    # Note the locations of all 'A', 'r' and 'c' characters.
+                    if char["c"] in ("A", "r", "c"):
+                        letter_locations[char["c"]].append(
+                            pymupdf.Point(char["origin"])
+                        )
+
+    if len(letter_locations["r"]) == 0 or len(letter_locations["c"]) == 0:
+        return False
+
+    # Iterate through all the 'A' characters.
+    for a_location in letter_locations["A"]:
+        # Check distances to the closest 'r' character.
+        closest_r = min([r.distance_to(a_location) for r in letter_locations["r"]])
+        if closest_r > 8:
+            continue
+        closest_c = min([c.distance_to(a_location) for c in letter_locations["c"]])
+        if closest_c > 13:
+            continue
+        return True
+
+    return False
 
 
 def find_plan_view_box(rectangle_layout, plate) -> pymupdf.Rect:

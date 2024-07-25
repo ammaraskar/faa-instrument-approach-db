@@ -24,6 +24,10 @@ def test_extract_gets_correct_approach_title(extracted_information):
     assert extracted_information.airport_name == "DUBOIS RGNL (DUJ)"
 
 
+def test_extract_gets_correct_approach_plan_view_data(extracted_information):
+    assert extracted_information.has_dme_arc == False
+
+
 def test_extract_gets_correct_waypoints(extracted_information):
     assert "TNKEE" in extracted_information.waypoints
     assert extracted_information.waypoints["TNKEE"].is_initial_approach_fix
@@ -97,6 +101,10 @@ def test_extract_gets_correct_approach_title_for_athens(athens_info):
     assert athens_info.airport_name == "ATHENS/BEN EPPS(AHN)"
 
 
+def test_extract_gets_correct_approach_plan_view_data_for_athens(athens_info):
+    assert athens_info.has_dme_arc == False
+
+
 def test_extract_gets_correct_waypoints_for_athens(athens_info):
     assert "BLLDG" in athens_info.waypoints
     assert athens_info.waypoints["BLLDG"].is_initial_approach_fix
@@ -166,6 +174,10 @@ def marin_state_info():
 def test_extract_gets_correct_approach_title_for_martin(marin_state_info):
     assert marin_state_info.approach_name == "VOR or TACAN RWY 15"
     assert marin_state_info.airport_name == "MARTIN STATE (MTN)"
+
+
+def test_extract_gets_correct_approach_plan_view_data_for_martin(marin_state_info):
+    assert marin_state_info.has_dme_arc == True
 
 
 def test_extract_gets_correct_waypoints_for_martin(marin_state_info):
