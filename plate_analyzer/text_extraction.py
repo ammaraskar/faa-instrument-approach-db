@@ -54,6 +54,7 @@ class SegmentedPlate:
     approach_course: Tuple[pymupdf.Rect, str]
 
     has_dme_arc: bool
+    has_procedure_turn: bool
     has_hold_in_lieu_of_procedure_turn: bool
 
     waypoints: Dict[str, Waypoint]
@@ -113,8 +114,10 @@ def extract_text_from_segmented_plate(
     # Get all the waypoints in the plan view.
     plan_view_box = find_plan_view_box(rectangle_layout, plate)
     waypoints = extract_all_waypoints_from_plan_view(plan_view_box, plate)
-    (has_hold_in_lieu,) = drawing_extraction.extract_approach_metadata(
-        plan_view_box, plate, drawings, debug=debug
+    (has_hold_in_lieu, has_procedure_turn) = (
+        drawing_extraction.extract_approach_metadata(
+            plan_view_box, plate, drawings, debug=debug
+        )
     )
     has_dme_arc = has_dme_arc_in_plan_view(plan_view_box, plate)
 
@@ -206,6 +209,7 @@ def extract_text_from_segmented_plate(
         approach_course=(approach_course_box, approach_text),
         has_dme_arc=has_dme_arc,
         has_hold_in_lieu_of_procedure_turn=has_hold_in_lieu,
+        has_procedure_turn=has_procedure_turn,
         waypoints=dict(waypoints),
         required_equipment=required_equipment,
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),

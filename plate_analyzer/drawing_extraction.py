@@ -12,10 +12,12 @@ import numpy as np
 def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
     # Return vals.
     has_hold_in_lieu = False
+    has_procedure_turn = False
 
     # Bezier curves and lines to draw in debug mode.
     debug_curves = []
     debug_lines = []
+    debug_barbs = []
 
     bezier_curve_locations = set()
     arc_diameter_lines = []
@@ -90,6 +92,88 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
             debug_lines.append(perp_line_1)
             debug_lines.append(perp_line_2)
 
+    # Next look for the procedure turn barb.
+    #     l
+    #   -----
+    #   \
+    #    \
+    #  h  \
+    #      \
+    # We are basically looking for the flat base of the triangle and the long
+    # hypotenus that makes up the barb. We then check the angle between these
+    # lines to make sure it's what we expect.
+    base_candidates = []
+    # Dict of rounded hypotenuse coordinates to hypotenuse line, so we can check
+    # it fast against all possible base lines.
+    hypotenuse_candidates = {}
+    for path in drawings:
+        # Ignore stuff outside of plan view.
+        if not plan_view_box.contains(path["rect"]):
+            continue
+
+        # Look for paths that only have lines.
+        has_lines_only = True
+        for item in path["items"]:
+            if item[0] != "l":
+                has_lines_only = False
+                break
+        if not has_lines_only:
+            continue
+
+        for item in path["items"]:
+            line = (item[1], item[2])
+            line_distance = item[1].distance_to(item[2])
+
+            # Barb triangle base between around 4.8
+            if abs(line_distance - 4.8) < 0.6:
+                base_candidates.append(line)
+                if debug:
+                    arc_diameter_lines.append(line)
+            # Barb triangle hypotenuse around 9
+            if abs(line_distance - 9) < 1:
+                p1 = (round(item[1].x, 0), round(item[1].y, 0))
+                p2 = (round(item[2].x, 0), round(item[2].y, 0))
+
+                hypotenuse_candidates[p1] = line
+                hypotenuse_candidates[p2] = line
+
+                if debug:
+                    debug_lines.append(line)
+    # Iterate over the bases and see if they intersect with any hypotenus.
+    for base_p1, base_p2 in base_candidates:
+        rounded_base_p1 = (round(base_p1.x, 0), round(base_p1.y, 0))
+        rounded_base_p2 = (round(base_p2.x, 0), round(base_p2.y, 0))
+
+        hypotenuse = None
+        if rounded_base_p1 in hypotenuse_candidates:
+            hypotenuse = hypotenuse_candidates[rounded_base_p1]
+        elif rounded_base_p2 in hypotenuse_candidates:
+            hypotenuse = hypotenuse_candidates[rounded_base_p1]
+        else:
+            continue
+
+        base_line = np.array([base_p2.x - base_p1.x, base_p2.y - base_p1.y])
+        hypotenuse_line = np.array(
+            [hypotenuse[1].x - hypotenuse[0].x, hypotenuse[1].y - hypotenuse[0].y]
+        )
+
+        # Calculate angle between hypotenuse and base line.
+        angle = angle_between_lines(base_line, hypotenuse_line)
+        angle = np.rad2deg(angle)
+        if angle > 90:
+            angle = 180 - angle
+        if debug:
+            debug_barbs.append(
+                (
+                    (hypotenuse),
+                    (base_p1, base_p2),
+                    angle,
+                )
+            )
+        # Around a 55 degree angle for the barb.
+        if abs(angle - 55) < 10:
+            has_procedure_turn = True
+
     if debug:
         outpdf = pymupdf.open()
         outpage = outpdf.new_page(width=plate.rect.width, height=plate.rect.height)
@@ -119,10 +203,17 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
             shape.draw_line(line[0], line[1])
             shape.finish(color=(0, 0, 1), dashes="[3 4] 0")
 
+        for base, hypotenuse, angle in debug_barbs:
+            shape.draw_line(base[0], base[1])
+            shape.finish(color=(1, 0.5, 0.5))
+            shape.draw_line(hypotenuse[0], hypotenuse[1])
+            shape.finish(color=(0.5, 0.5, 1))
+            outpage.insert_text(base[0] + pymupdf.Point(2, 2), "A: " + str(int(angle)))
+
         shape.commit()
         outpage.get_pixmap(dpi=400).save("drawings.png")
 
-    return (has_hold_in_lieu,)
+    return (has_hold_in_lieu, has_procedure_turn)
 
 
 I_BEAM_PERPENDICULAR_LENGTH = 80
@@ -169,3 +260,15 @@ def line_distance_to_point(line, point):
     return np.linalg.norm(
         np.cross(line[0] - line[1], line[1] - point)
     ) / np.linalg.norm(line[1] - line[0])
+
+
+def unit_vector(vector):
+    """Returns the unit vector of the vector."""
+    return vector / np.linalg.norm(vector)
+
+
+def angle_between_lines(line1, line2):
+    """Calculate the angle between line1 and line2."""
+    v1_u = unit_vector(line1)
+    v2_u = unit_vector(line2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
