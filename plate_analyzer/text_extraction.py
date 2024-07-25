@@ -16,6 +16,7 @@ class PlateComments:
 
 @dataclass
 class ApproachMinimum:
+    # e.g 3000 altitude 3/4 visibility
     altitude: str
     rvr: Optional[str]
     visibility: Optional[str]
@@ -24,12 +25,11 @@ class ApproachMinimum:
 @dataclass
 class ApproachCategory:
     approach_type: str
-    # Altitude, visibility for each category.
-    # e.g 300 3/4
-    cat_a: ApproachMinimum
-    cat_b: ApproachMinimum
-    cat_c: ApproachMinimum
-    cat_d: ApproachMinimum
+    # Altitude, visibility for each category. If None, approach is not allowed.
+    cat_a: Optional[ApproachMinimum]
+    cat_b: Optional[ApproachMinimum]
+    cat_c: Optional[ApproachMinimum]
+    cat_d: Optional[ApproachMinimum]
     # Used if these minimums are valid based on a condition, such as being
     # able to identify a particular fix.
     condition: Optional[str]
@@ -310,6 +310,11 @@ def extract_minimums(
 
 
 def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
+    # Check if the procedure is allowed for this category.
+    text = plate.get_text(option="text", clip=box).strip()
+    if text == "NA":
+        return None
+
     # For circling minimums, we expect a second line for the HAA
     # (Height Above Airport) during circling, but we don't really need that
     # information. So only get letters from one half of the rectangle, either
