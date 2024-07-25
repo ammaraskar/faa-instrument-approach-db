@@ -38,6 +38,11 @@ cursed thing, you can view one here: https://www.faa.gov/aero_docs/acifp/2015121
 
 3. Extract information from each segmented area such as the minimums.
 
+4. Check for stuff like hold-in-lieu of procedure turns and procedure turn
+   barbs.
+
+   ![Example of race track](test_data/race-track.png)
+
 ## Development
 
 Run tests with `python -m pytest`

@@ -26,6 +26,7 @@ def test_extract_gets_correct_approach_title(extracted_information):
 
 def test_extract_gets_correct_approach_plan_view_data(extracted_information):
     assert extracted_information.has_dme_arc == False
+    assert extracted_information.has_hold_in_lieu_of_procedure_turn == True
 
 
 def test_extract_gets_correct_waypoints(extracted_information):
@@ -103,6 +104,7 @@ def test_extract_gets_correct_approach_title_for_athens(athens_info):
 
 def test_extract_gets_correct_approach_plan_view_data_for_athens(athens_info):
     assert athens_info.has_dme_arc == False
+    assert athens_info.has_hold_in_lieu_of_procedure_turn == False
 
 
 def test_extract_gets_correct_waypoints_for_athens(athens_info):
@@ -178,6 +180,7 @@ def test_extract_gets_correct_approach_title_for_martin(marin_state_info):
 
 def test_extract_gets_correct_approach_plan_view_data_for_martin(marin_state_info):
     assert marin_state_info.has_dme_arc == True
+    assert marin_state_info.has_hold_in_lieu_of_procedure_turn == False
 
 
 def test_extract_gets_correct_waypoints_for_martin(marin_state_info):
