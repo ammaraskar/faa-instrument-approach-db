@@ -92,6 +92,9 @@ def extract_text_from_segmented_plate(
         rectangle_layout[-1].append(r)
 
     approach_course_box = rectangle_layout[0][1]
+    # Some RNP approaches do not have a channel/ILS box on the top-left
+    if len(rectangle_layout[0]) == 2:
+        approach_course_box = rectangle_layout[0][0]
     approach_text = (
         plate.get_textbox(approach_course_box, textpage=textpage)
         .replace("APP CRS", "")
