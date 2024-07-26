@@ -38,8 +38,8 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
         if not plan_view_box.contains(path["rect"]):
             continue
         # For a charted hold, the arc on either side is typically made
-        # of 4 bezier curves.
-        if len(path["items"]) != 4:
+        # of 4 or less bezier curves.
+        if len(path["items"]) > 4:
             continue
         # Look for paths that only have bezier curves.
         has_curves_only = True
@@ -53,9 +53,10 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
         # Draw a line between the start point of the first bezier curve and then
         # the final point of the last bezier curve.
         curve_start = path["items"][0][1]
-        curve_end = path["items"][3][4]
-        # Filter out any arcs that are too small.
-        if curve_start.distance_to(curve_end) < 3:
+        curve_end = path["items"][-1][4]
+        curve_distance = curve_start.distance_to(curve_end)
+        # Filter out any arcs that are too small or too large.
+        if curve_distance < 10 or curve_distance > 50:
             continue
         arc_diameter_lines.append((curve_start, curve_end))
 
@@ -85,7 +86,7 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
             curve_loc_array = np.array([curve_loc.x, curve_loc.y])
             perp_line_1_distance = line_distance_to_point(perp_line_1, curve_loc_array)
             perp_line_2_distance = line_distance_to_point(perp_line_2, curve_loc_array)
-            if perp_line_1_distance < 1 or perp_line_2_distance < 1:
+            if perp_line_1_distance < 0.75 or perp_line_2_distance < 0.75:
                 has_hold_in_lieu = True
 
         if debug:
