@@ -149,7 +149,7 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
         if rounded_base_p1 in hypotenuse_candidates:
             hypotenuse = hypotenuse_candidates[rounded_base_p1]
         elif rounded_base_p2 in hypotenuse_candidates:
-            hypotenuse = hypotenuse_candidates[rounded_base_p1]
+            hypotenuse = hypotenuse_candidates[rounded_base_p2]
         else:
             continue
 
@@ -217,7 +217,7 @@ def extract_approach_metadata(plan_view_box, plate, drawings, debug=False):
     return (has_hold_in_lieu, has_procedure_turn)
 
 
-I_BEAM_PERPENDICULAR_LENGTH = 80
+I_BEAM_PERPENDICULAR_LENGTH = 70
 
 
 def get_i_beam_from_line(line):
