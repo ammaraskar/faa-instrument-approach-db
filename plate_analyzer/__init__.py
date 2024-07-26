@@ -4,7 +4,7 @@ import pymupdf
 
 
 def extract_information_from_plate(plate_path, debug=False):
-    pdf = pymupdf.open(plate_path)
+    pdf = pymupdf.open(plate_path, filetype='pdf')
     plate = pdf[0]
 
     drawings = plate.get_drawings()
