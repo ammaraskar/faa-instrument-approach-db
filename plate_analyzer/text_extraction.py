@@ -304,6 +304,8 @@ def extract_minimums(
             num_categories_covered = int(
                 round(minimums_box.width / category_boxes[0].width, 0)
             )
+            # Sometimes the width check goes over and claims to cover 5, cap it.
+            num_categories_covered = min(num_categories_covered, 4)
             for _ in range(num_categories_covered):
                 minimums_per_category.append(minimums)
                 num_minimums += 1
