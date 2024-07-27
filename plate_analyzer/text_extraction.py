@@ -111,6 +111,8 @@ def extract_text_from_segmented_plate(
     approach_title = pymupdf_group_words_into_lines_based_on_vertical_position(
         approach_title
     )
+    # Ignore lines with the FAA-approach identifier
+    approach_title = [line for line in approach_title if ('(FAA)' not in line) and (not line.isdigit())]
     # If there is an ILS category like `(CAT II)`, append it to the approach
     # name.
     if len(approach_title) == 3 and (approach_title[0].startswith('(CAT') or approach_title[0].startswith('(SA')):
@@ -135,11 +137,13 @@ def extract_text_from_segmented_plate(
     for i in range(0, 3):
         for rect in rectangle_layout[i]:
             rect_text = plate.get_textbox(rect, textpage=textpage)
+            if "MISSED" not in rect_text:
+                continue
             # HACK: RNAV 22 for FLP has a typo. (Reported to the FAA)
-            if "MISSED APROACH" in rect_text:
-                missed_approach_rect = rect
-            if "MISSED APPROACH" in rect_text:
-                missed_approach_rect = rect
+            if "APPROACH" not in rect_text and "APROACH" not in rect_text:
+                continue
+            missed_approach_rect = rect
+
 
     if missed_approach_rect is None:
         raise ValueError("Could not find missed approach instructions")
@@ -332,8 +336,12 @@ def extract_minimums(
 def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     # Check if the procedure is allowed for this category.
     text = plate.get_text(option="text", clip=box).strip()
-    if text == "NA":
+    if "NA" in text:
         return None
+    # If the text "CAT" appears in the box, this is a special ILS cat approach,
+    # we don't handle that format of minimums yet.
+    if "CAT" in text:
+        return "Unknown"
 
     # For circling minimums, we expect a second line for the HAA
     # (Height Above Airport) during circling, but we don't really need that
