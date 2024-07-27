@@ -437,10 +437,10 @@ def pymupdf_group_words_into_lines_based_on_vertical_position(words):
     words.sort(key=lambda w: w[0])
 
     words_grouped_by_y = collections.defaultdict(list)
-
     for w in words:
-        y1 = round_to_nearest(w[3], nearest=6)
-        words_grouped_by_y[y1].append(w[4].strip())
+        y = (w[1] + w[3]) / 2
+        y_round = round_to_nearest(y, nearest=6)
+        words_grouped_by_y[y_round].append(w[4].strip())
 
     lines = []
     for y in sorted(words_grouped_by_y.keys()):
