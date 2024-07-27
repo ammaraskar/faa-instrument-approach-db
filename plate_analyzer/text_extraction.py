@@ -101,11 +101,11 @@ def extract_text_from_segmented_plate(
         .strip()
     )
 
-    # Approach title will be on the right side of the page, on the same line
-    # as the approach course.
+    # Approach title will be on the right side of the page, after the approach
+    # course and info boxes on the left.
     approach_title_area = pymupdf.Rect(
-        approach_course_box.top_right + pymupdf.Point(80, 0),
-        pymupdf.Point(plate.rect.width, approach_course_box.bottom_right.y),
+        rectangle_layout[0][-1].top_right + pymupdf.Point(30, 0),
+        pymupdf.Point(plate.rect.width, rectangle_layout[0][-1].bottom_right.y),
     )
     approach_title = plate.get_text(option="words", sort=True, clip=approach_title_area)
     approach_title = pymupdf_group_words_into_lines_based_on_vertical_position(
