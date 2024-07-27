@@ -111,7 +111,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     img_grayscale[img_grayscale < 10] = 0
 
     # Use scikit image to label different parts of the image.
-    label_image = skimage.measure.label(img_grayscale)
+    label_image = skimage.measure.label(img_grayscale, connectivity=1)
 
     segments = []
     for region in skimage.measure.regionprops(label_image):
