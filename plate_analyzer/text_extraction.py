@@ -283,10 +283,12 @@ def extract_minimums(
 
     for i in range(1, len(rectangle_layout)):
         approach_name_rect = rectangle_layout[i][0]
-        # Should be the same size as the category cell.
+        # Should be the same size as the category cell and have some text.
         if int(approach_name_rect.width) != int(category_rect.width):
             break
         approach_name = plate.get_textbox(approach_name_rect, textpage=textpage)
+        if len(approach_name.strip()) == 0:
+            break
         # Remove the Decision Altitude/Minimum Descent Altitude suffix, and fix
         # LNAV/VNAV being split over two lines.
         approach_name = approach_name.replace("MDA", "").replace("DA", "").strip()
