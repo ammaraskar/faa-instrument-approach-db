@@ -329,7 +329,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     # For circling minimums, we expect a second line for the HAA
     # (Height Above Airport) during circling, but we don't really need that
     # information. So only get letters from one half of the rectangle, either
-    # the bottom or left side depending on the width of the box.
+    # the top or left side depending on the width of the box.
     if "CIRCLING" in minimum_type and ((box.width / box.height) > 5):
         # Very horizontal box, HHA is on the right.
         box = pymupdf.Rect(
@@ -338,7 +338,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     elif "CIRCLING" in minimum_type and ((box.width / box.height) <= 5):
         # Regular box, HHA is on the bottom.
         box = pymupdf.Rect(
-            box.top_left, box.bottom_right - pymupdf.Point(0, box.height * 0.6)
+            box.top_left, box.bottom_right - pymupdf.Point(0, box.height * 0.57)
         )
 
     raw_text = plate.get_text(option="rawdict", clip=box)
