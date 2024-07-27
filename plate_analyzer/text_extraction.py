@@ -265,6 +265,7 @@ def extract_minimums(
                 f"letter {i} after CATEGORY should be {letter}, was {letter_text}"
             )
         category_boxes.append(letter_rect)
+    categories_width = sum([cat_box.width for cat_box in category_boxes])
 
     # Grab the first approach name.
     all_minimums = []
@@ -302,10 +303,8 @@ def extract_minimums(
             # Check the width of the minimums box to see how many categories it
             # covers.
             num_categories_covered = int(
-                round(minimums_box.width / category_boxes[0].width, 0)
+                round(minimums_box.width / (categories_width / 4), 0)
             )
-            # Sometimes the width check goes over and claims to cover 5, cap it.
-            num_categories_covered = min(num_categories_covered, 4)
             for _ in range(num_categories_covered):
                 minimums_per_category.append(minimums)
                 num_minimums += 1
@@ -428,7 +427,7 @@ def pymupdf_group_words_into_lines_based_on_vertical_position(words):
     words_grouped_by_y = collections.defaultdict(list)
 
     for w in words:
-        y1 = round_to_nearest(w[3], nearest=8)
+        y1 = round_to_nearest(w[3], nearest=6)
         words_grouped_by_y[y1].append(w[4].strip())
 
     lines = []
