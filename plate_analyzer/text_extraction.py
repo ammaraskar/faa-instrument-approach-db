@@ -216,7 +216,10 @@ def extract_text_from_segmented_plate(
             pymupdf_extracted_words_to_string(required_equipment_text),
         )
 
-    minimums = extract_minimums(rectangle_layout, plate=plate, textpage=textpage)
+    try:
+        minimums = extract_minimums(rectangle_layout, plate=plate, textpage=textpage)
+    except ValueError:
+        minimums = []
 
     return SegmentedPlate(
         approach_name=approach_name,
@@ -263,6 +266,9 @@ def extract_minimums(
             filtered_rectangles.append(filtered_row)
 
     rectangle_layout = filtered_rectangles
+
+    if len(rectangle_layout[0]) < 4:
+        raise ValueError("Not enough letter boxes after CATEGORY")
 
     # Verify that the boxes next to category are A, B, C, D like we expect.
     category_boxes = []
