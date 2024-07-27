@@ -104,7 +104,7 @@ def extract_text_from_segmented_plate(
     # Approach title will be on the right side of the page, on the same line
     # as the approach course.
     approach_title_area = pymupdf.Rect(
-        approach_course_box.top_right + pymupdf.Point(100, 0),
+        approach_course_box.top_right + pymupdf.Point(80, 0),
         pymupdf.Point(plate.rect.width, approach_course_box.bottom_right.y),
     )
     approach_title = plate.get_text(option="words", sort=True, clip=approach_title_area)
@@ -155,7 +155,7 @@ def extract_text_from_segmented_plate(
     # Comments box will be around half the width of the document, and its bottom
     # will line up with the missed approach box.
     comments_box = None
-    for i in (1, 2):
+    for i in (1, 2, 3,):
         for rect in rectangle_layout[i]:
             if rect.width > (plate.rect.width * 0.4) and int(rect.bottom_left.y) == int(
                 missed_approach_rect.bottom_left.y
@@ -427,12 +427,15 @@ def pymupdf_extracted_words_to_string(words):
 def round_to_nearest(x, nearest):
     """Rounds `x`, a float to the `nearest` number"""
     x = int(round(x, 0))
-    return x - (x % nearest)
+    return nearest * round(x / nearest)
 
 
 def pymupdf_group_words_into_lines_based_on_vertical_position(words):
     """Joins a list of extracted words into lines as above but returns a list
     of lines, grouping them based on their y-coordinate."""
+    # Sort by x only
+    words.sort(key=lambda w: w[0])
+
     words_grouped_by_y = collections.defaultdict(list)
 
     for w in words:
