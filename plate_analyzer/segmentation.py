@@ -56,9 +56,9 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
                     item = ("re", as_rect)
 
             if item[0] == "l":  # line
-                if item[1].x == item[2].x:
+                if round(item[1].x, 0) == round(item[2].x, 0):
                     lines.append(line_segment_as_rect_from_points(item[1], item[2]))
-                elif item[1].y == item[2].y:
+                elif round(item[1].y, 0) == round(item[2].y, 0):
                     lines.append(line_segment_as_rect_from_points(item[1], item[2]))
             elif item[0] == "re":  # rectangle
                 # Rectangles have two vertical and two horizontal lines.
