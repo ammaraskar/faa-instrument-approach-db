@@ -310,6 +310,10 @@ def extract_minimums(
                 num_minimums += 1
             j += 1
 
+        # Some plates have special category E for very fast military planes.
+        # Let's ignore those :)
+        minimums_per_category = minimums_per_category[:4]
+
         cat_a, cat_b, cat_c, cat_d = minimums_per_category
         all_minimums.append(
             ApproachCategory(
