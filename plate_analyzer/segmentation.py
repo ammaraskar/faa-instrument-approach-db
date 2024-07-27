@@ -29,7 +29,6 @@ def make_rectangle_from_quad(quad: pymupdf.Quad) -> Optional[pymupdf.Rect]:
         return None
     # Check the left and right lines and see if they're straight.
     if ul.x != ll.x or ur.x != lr.x:
-        print(ul, ur, ll, lr)
         return None
     return quad.rect
 

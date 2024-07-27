@@ -165,8 +165,8 @@ def extract_text_from_segmented_plate(
     )
     missed_approach_text = pymupdf_extracted_words_to_string(missed_approach_text)
 
-    # Comments box will be around half the width of the document, and its bottom
-    # will line up with the missed approach box.
+    # Comments box will be more than a third the width of the document, and
+    # its bottom will line up with the missed approach box.
     comments_box = None
     for i in (
         1,
@@ -175,7 +175,7 @@ def extract_text_from_segmented_plate(
     ):
         for rect in rectangle_layout[i]:
             if (
-                rect.width > (plate.rect.width * 0.4)
+                rect.width > (plate.rect.width * 0.3)
                 and abs(rect.bottom_left.y - missed_approach_rect.bottom_left.y) < 3
             ):
                 comments_box = rect
