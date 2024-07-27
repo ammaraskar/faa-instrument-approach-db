@@ -2,6 +2,8 @@ import pymupdf
 import numpy as np
 import skimage
 
+from typing import Optional
+
 
 def line_segment_as_rect_from_points(point1, point2):
     """
@@ -13,6 +15,21 @@ def line_segment_as_rect_from_points(point1, point2):
     rect = pymupdf.Rect(x0, y0, x1, y1)
     rect.normalize()
     return rect
+
+
+def make_rectangle_from_quad(quad: pymupdf.Quad) -> Optional[pymupdf.Rect]:
+    # Sort by y-then-x to get the upper left, upper right and then lower left
+    # lower right points of the quad.
+    quad_points_sorted = sorted([quad.ul, quad.ur, quad.ll, quad.lr],
+                                key=lambda p: (p.y, p.x))
+    ul, ur, ll, lr = quad_points_sorted
+    # Check the top and bottom lines and see if they're straight.
+    if round(ul.y, 0) != round(ur.y, 0) or round(ll.y, 0) != round(lr.y, 0):
+        return None
+    # Check the left and right lines and see if they're straight.
+    if round(ul.x, 0) != round(ll.x, 0) or round(ur.x, 0) != round(lr.x, 0):
+        return None
+    return quad.rect
 
 
 def segment_plate_into_rectangles(plate, drawings, debug=False):
@@ -31,10 +48,12 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
         if path["width"] is not None and (path["width"] > 2.0):
             continue
 
-        # If it's a quad with 4 points and they line up, treat it like a rectangle.
+        # If it's a quad and they line up, treat it like a rectangle.
         for item in path["items"]:
-            if item[0] == "qu" and item[1].is_rectangular:
-                item = ("re", pymupdf.Rect(item[1].ul, item[1].lr))
+            if item[0] == "qu":
+                as_rect = make_rectangle_from_quad(item[1])
+                if as_rect is not None:
+                    item = ("re", as_rect)
 
             if item[0] == "l":  # line
                 if item[1].x == item[2].x:
