@@ -112,16 +112,22 @@ def extract_text_from_segmented_plate(
         approach_title
     )
     # Ignore lines with the FAA-approach identifier
-    approach_title = [line for line in approach_title if ('(FAA)' not in line) and (not line.isdigit())]
+    approach_title = [
+        line
+        for line in approach_title
+        if ("(FAA)" not in line) and (not line.isdigit())
+    ]
     # If there is an ILS category like `(CAT II)`, append it to the approach
     # name.
-    if len(approach_title) == 3 and (approach_title[0].startswith('(CAT') or approach_title[0].startswith('(SA')):
+    if len(approach_title) == 3 and (
+        approach_title[0].startswith("(CAT") or approach_title[0].startswith("(SA")
+    ):
         ils_category = approach_title[0]
         approach_title = [f"{approach_title[1]} {ils_category}", approach_title[2]]
     # Another hack to deal with extra stuff being included in the approach title.
     # Get rid of anything that doesn't have some alphabets.
     approach_title = [line for line in approach_title if any(c.isalpha() for c in line)]
-    
+
     # First line is the approach title, then the airport name.
     approach_name, airport_name = approach_title
 
@@ -148,7 +154,6 @@ def extract_text_from_segmented_plate(
                 continue
             missed_approach_rect = rect
 
-
     if missed_approach_rect is None:
         raise ValueError("Could not find missed approach instructions")
     # Missed approach has very strange ordering in the pdf, we often end up with
@@ -163,10 +168,16 @@ def extract_text_from_segmented_plate(
     # Comments box will be around half the width of the document, and its bottom
     # will line up with the missed approach box.
     comments_box = None
-    for i in (1, 2, 3,):
+    for i in (
+        1,
+        2,
+        3,
+    ):
         for rect in rectangle_layout[i]:
-            if rect.width > (plate.rect.width * 0.4) and \
-                abs(rect.bottom_left.y - missed_approach_rect.bottom_left.y) < 3:
+            if (
+                rect.width > (plate.rect.width * 0.4)
+                and abs(rect.bottom_left.y - missed_approach_rect.bottom_left.y) < 3
+            ):
                 comments_box = rect
                 break
     if comments_box is None:
