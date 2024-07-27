@@ -75,7 +75,9 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     outpage = segmented.new_page(width=plate.rect.width, height=plate.rect.height)
     shape = outpage.new_shape()
     for line in lines:
-        shape.draw_line(line.top_left, line.bottom_right)
+        rounded_tl = round(line.top_left.x, 0), round(line.top_left.y, 0)
+        rounded_br = round(line.bottom_right.x, 0), round(line.bottom_right.y, 0)
+        shape.draw_line(rounded_tl, rounded_br)
         shape.finish(color=(0, 0, 0))  # line color
     shape.commit()
 
@@ -84,7 +86,8 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     samples = pixmap.samples_mv
     # Threshold the image and then have scikit make labels.
     img = np.asarray(samples).reshape((pixmap.h, pixmap.w))
-    # skimage.io.imsave("lines.png", img)
+    if debug:
+        skimage.io.imsave("lines.png", img)
     img_grayscale = img.copy()
     img_grayscale[img_grayscale < 10] = 0
 

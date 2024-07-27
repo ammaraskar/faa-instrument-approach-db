@@ -130,6 +130,9 @@ def extract_text_from_segmented_plate(
     for i in range(0, 3):
         for rect in rectangle_layout[i]:
             rect_text = plate.get_textbox(rect, textpage=textpage)
+            # HACK: RNAV 22 for FLP has a typo. (Reported to the FAA)
+            if "MISSED APROACH" in rect_text:
+                missed_approach_rect = rect
             if "MISSED APPROACH" in rect_text:
                 missed_approach_rect = rect
 
