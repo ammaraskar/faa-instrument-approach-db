@@ -67,7 +67,7 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
                 continue
 
     # Filter out short lines.
-    lines = [line for line in lines if line.width > 5 or line.height > 5]
+    lines = [line for line in lines if line.width > 6 or line.height > 6]
 
     # Create an image with just the horizontal and vertical lines so we can
     # segment out the rectangles.
