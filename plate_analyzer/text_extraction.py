@@ -414,13 +414,18 @@ def pymupdf_extracted_words_to_string(words):
     return " ".join([w[4].strip() for w in words])
 
 
+def round_to_nearest(x, nearest):
+    """Rounds `x` an integer to the `nearest` number"""
+    return x * round(x/nearest)
+
+
 def pymupdf_group_words_into_lines_based_on_vertical_position(words):
     """Joins a list of extracted words into lines as above but returns a list
     of lines, grouping them based on their y-coordinate."""
     words_grouped_by_y = collections.defaultdict(list)
 
     for w in words:
-        y1 = int(round(w[3], 0))
+        y1 = round_to_nearest(int(w[3]), 5)
         words_grouped_by_y[y1].append(w[4].strip())
 
     lines = []
