@@ -111,6 +111,11 @@ def extract_text_from_segmented_plate(
     approach_title = pymupdf_group_words_into_lines_based_on_vertical_position(
         approach_title
     )
+    # If there is an ILS category like `(CAT II)`, append it to the approach
+    # name.
+    if len(approach_title) == 3 and (approach_title[0].startswith('(CAT') or approach_title[0].startswith('(SA')):
+        ils_category = approach_title[0]
+        approach_title = [f"{approach_title[1]} {ils_category}", approach_title[2]]
     # First line is the approach title, then the airport name.
     approach_name, airport_name = approach_title
 
