@@ -407,7 +407,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
         first_letter_bbox = pymupdf.Rect(letters[0]["bbox"])
         if first_number_bbox.height < first_letter_bbox.height * 0.8:
             visibility = f"{visibility}/{letters[i + 2]['c']}"
-        elif len(letters) > (i + 2):
+        elif len(letters) > (i + 3):
             # First number was not a fraction, so this could be a single number
             # or a mixed fraction. Check if the next number is a fraction.
             second_number_bbox = pymupdf.Rect(letters[i + 2]["bbox"])
