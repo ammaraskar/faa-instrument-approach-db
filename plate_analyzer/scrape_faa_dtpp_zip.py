@@ -125,7 +125,8 @@ def analyze_dtpp_zips(folder):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             i = 0
             for file in dtpp_zip.namelist():
-                if i > 80:
+                # TODO: remove this, for limited testing
+                if i > 120:
                     break
 
                 if file not in approach_file_to_airport:

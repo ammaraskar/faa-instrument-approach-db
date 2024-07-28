@@ -128,6 +128,9 @@ def extract_text_from_segmented_plate(
     # Another hack to deal with extra stuff being included in the approach title.
     # Get rid of anything that doesn't have some alphabets.
     approach_title = [line for line in approach_title if any(c.isalpha() for c in line)]
+    # Finally if we still have too many elements, just do the best we can.
+    if len(approach_title) > 2:
+        approach_title = approach_title[:2]
 
     # First line is the approach title, then the airport name.
     approach_name, airport_name = approach_title

@@ -27,7 +27,12 @@ def make_rectangle_from_quad(quad: pymupdf.Quad) -> Optional[pymupdf.Rect]:
     # Sort by y-then-x to get the upper left, upper right and then lower left
     # lower right points of the quad.
     points = [quad.ul, quad.ur, quad.ll, quad.lr]
-    quad_points = [pymupdf.Point(round_to_nearest(p.x, nearest=7), round_to_nearest(p.y, nearest=7)) for p in points]
+    quad_points = [
+        pymupdf.Point(
+            round_to_nearest(p.x, nearest=7), round_to_nearest(p.y, nearest=7)
+        )
+        for p in points
+    ]
     quad_points_sorted = sorted(quad_points, key=lambda p: (p.y, p.x))
     ul, ur, ll, lr = quad_points_sorted
     # Check the top and bottom lines and see if they're straight.
