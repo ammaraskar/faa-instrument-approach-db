@@ -7,8 +7,11 @@ zip file and analyzes each plate present in the zip.
 import zipfile
 import tempfile
 import pathlib
+import io
 import xml.etree.ElementTree as ET
-from plate_analyzer import extract_information_from_plate, PlateNeedsOCRException
+from plate_analyzer import extract_information_from_pdf, PlateNeedsOCRException
+
+import pymupdf
 
 
 ignored_approaches = set(
@@ -50,17 +53,12 @@ def scan_dtpp_file(zip):
 
             print(i, file_info)
             with dtpp_zip.open(file_info.filename) as approach_zip:
+                pdf_data = io.BytesIO(approach_zip.read())
+                pdf = pymupdf.open(filetype='pdf', stream=pdf_data)
                 try:
-                    analyze_zip_approach_file(approach_zip)
+                    extract_information_from_pdf(pdf, debug=False)
                 except PlateNeedsOCRException:
                     print("OCR needed")
-
-
-def analyze_zip_approach_file(file):
-    temp_file = pathlib.Path(tempfile.gettempdir()) / "analyze_plate.pdf"
-    with temp_file.open("wb") as f:
-        f.write(file.read())
-    extract_information_from_plate(temp_file, debug=True)
 
 
 def verify_contents_of_zip_against_metadata(folder):

@@ -17,6 +17,10 @@ class PlateNeedsOCRException(PlateAnalyzerException):
 
 def extract_information_from_plate(plate_path, debug=False):
     pdf = pymupdf.open(plate_path, filetype="pdf")
+    return extract_information_from_pdf(pdf, debug=debug)
+
+
+def extract_information_from_pdf(pdf, debug=False):
     plate = pdf[0]
 
     drawings = plate.get_drawings()
