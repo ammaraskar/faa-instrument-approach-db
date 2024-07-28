@@ -7,44 +7,22 @@ zip file and analyzes each plate present in the zip.
 import zipfile
 import pathlib
 import io
+import traceback
 import xml.etree.ElementTree as ET
 from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
     PlateAnalyzerException,
 )
+from plate_analyzer.schema import AnalysisResult, Failure, Airport
 
 import pymupdf
-
-
-ignored_approaches = set(
-    [
-        # This plate is busted, table for the category has no divider
-        # between the word "CATEGORY" and "A"
-        "05052IL9R.PDF",
-        # Also busted, no category seperator line between A and B.
-        "05091N18L.PDF",
-        # ILS RWY 19C (CAT II & III) at Dulles, very complicated.
-        "05100I19CC2_3.PDF",
-        # ILS RWY 19R (CAT II & III) at Dulles, very complicated.
-        "05100I19RC2_3.PDF",
-        # VOR-C at ELY, missing complete line in cat B/cat C seperator.
-        "05163VC.PDF",
-        # ILS/LOC 24 at FEP Missed approach box line messed up.
-        "05641IL24.PDF",
-        # VOR 28 at BJJ, plan view line has two separate segments.
-        "05663V28.PDF",
-    ]
-)
 
 
 def scan_dtpp_file(zip):
     with zipfile.ZipFile(zip, "r") as dtpp_zip:
         for i, file_info in enumerate(dtpp_zip.infolist()):
             if "COPTER" in file_info.filename:
-                continue
-
-            if file_info.filename.upper() in ignored_approaches:
                 continue
 
             # if i not in (5,):
@@ -64,7 +42,7 @@ def scan_dtpp_file(zip):
                     print("OCR needed")
 
 
-def analyze_dtpp_zips(folder):
+def analyze_dtpp_zips(folder) -> AnalysisResult:
     """Given a folder containing the `DDTPPX_CYCLE.zip` files, analyzes all
     the approach plates inside."""
     folder_path = pathlib.Path(folder)
@@ -103,8 +81,8 @@ def analyze_dtpp_zips(folder):
 
             # Note if it's a civil or joint-use procedure. We can't parse
             # military procedures yet because their pdfs don't have text...
-            civil_field = record.find("civil").text
-            is_military = civil_field == "N" or civil_field == "H"
+            civil_procedure = record.find("civil").text
+            is_military = civil_procedure == "N" or civil_procedure == "H"
 
             # Skip visual and copter approaches.
             if "VISUAL" in chart_name:
@@ -126,8 +104,10 @@ def analyze_dtpp_zips(folder):
             i = 0
             for file in dtpp_zip.namelist():
                 # TODO: remove this, for limited testing
-                if i > 120:
-                    break
+                # if i > 100:
+                #    break
+                if file != "06065R8.PDF":
+                    continue
 
                 if file not in approach_file_to_airport:
                     print("Ignoring file", file)
@@ -143,12 +123,27 @@ def analyze_dtpp_zips(folder):
                         print("Analyzing", file)
                         extract_information_from_pdf(pdf, debug=False)
                     except Exception as e:
-                        failures.append((e, file, zip_path.name, airport, approach))
+                        exc_frame = traceback.extract_tb(e.__traceback__, limit=1)[0]
+                        failures.append(
+                            Failure(
+                                exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
+                                zip_file=zip_path.name,
+                                file_name=file,
+                                approach_name=approach,
+                                airport_name=airport,
+                            )
+                        )
 
-    for e, file, zip_path, airport, approach in failures:
-        print(f"Failed {file} in {zip_path}. {approach} at {airport} because: {str(e)}")
+    for failure in failures:
+        print(
+            f"Failed {failure.file_name} in {failure.zip_file}. "
+            f"{failure.approach_name} at {failure.airport_name}. "
+            f"Exception: {failure.exception_message}"
+        )
 
     print("Num skipped: ", len(skipped))
+
+    return AnalysisResult(airports={}, failures=failures)
 
 
 def verify_contents_of_zip_against_metadata(folder):
