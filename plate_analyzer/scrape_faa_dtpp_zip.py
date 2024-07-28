@@ -4,6 +4,7 @@ https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/dtpp/
 zip file and analyzes each plate present in the zip.
 """
 
+import collections
 import zipfile
 import pathlib
 import io
@@ -14,7 +15,13 @@ from plate_analyzer import (
     PlateNeedsOCRException,
     PlateAnalyzerException,
 )
-from plate_analyzer.schema import AnalysisResult, Failure, Airport
+from plate_analyzer.schema import (
+    AnalysisResult,
+    Failure,
+    Airport,
+    ApproachName,
+    SkippedApproach,
+)
 
 import pymupdf
 
@@ -61,7 +68,7 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
     if metadata is None:
         raise ValueError("Did not locate d-TPP_Metafile.xml in any zip")
 
-    skipped = []
+    skipped = collections.defaultdict(list)
     # Maps the approach file pdf name to the airport the approach is for, as
     # well as the name of the approach.
     approach_file_to_airport = {}
@@ -86,13 +93,19 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
 
             # Skip visual and copter approaches.
             if "VISUAL" in chart_name:
-                skipped.append(("VISUAL", chart_name, pdf_file))
+                skipped["VISUAL"].append(
+                    ApproachName(name=chart_name, airport=airport_id)
+                )
                 continue
             if "COPTER" in chart_name:
-                skipped.append(("COPTER", chart_name, pdf_file))
+                skipped["COPTER"].append(
+                    ApproachName(name=chart_name, airport=airport_id)
+                )
                 continue
             if is_military:
-                skipped.append(("MILITARY", chart_name, pdf_file))
+                skipped["MILITARY"].append(
+                    ApproachName(name=chart_name, airport=airport_id)
+                )
                 continue
 
             approach_file_to_airport[pdf_file] = (airport_id, chart_name)
@@ -129,21 +142,33 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
                                 exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
                                 zip_file=zip_path.name,
                                 file_name=file,
-                                approach_name=approach,
-                                airport_name=airport,
+                                approach=ApproachName(
+                                    name=approach,
+                                    airport=airport,
+                                ),
                             )
                         )
+
+    skipped_approaches = []
+    for skip_reason, skipped_list in skipped.items():
+        skipped_approaches.append(
+            SkippedApproach(
+                skip_reason=skip_reason,
+                approaches=skipped_list,
+            )
+        )
+        print(f"SKIPPED because {skip_reason}: ", len(skipped_list))
 
     for failure in failures:
         print(
             f"Failed {failure.file_name} in {failure.zip_file}. "
-            f"{failure.approach_name} at {failure.airport_name}. "
+            f"{failure.approach.name} at {failure.approach.airport}. "
             f"Exception: {failure.exception_message}"
         )
 
-    print("Num skipped: ", len(skipped))
-
-    return AnalysisResult(airports={}, failures=failures)
+    return AnalysisResult(
+        airports={}, failures=failures, skipped_approaches=skipped_approaches
+    )
 
 
 def verify_contents_of_zip_against_metadata(folder):
