@@ -5,11 +5,14 @@ zip file and analyzes each plate present in the zip.
 """
 
 import zipfile
-import tempfile
 import pathlib
 import io
 import xml.etree.ElementTree as ET
-from plate_analyzer import extract_information_from_pdf, PlateNeedsOCRException
+from plate_analyzer import (
+    extract_information_from_pdf,
+    PlateNeedsOCRException,
+    PlateAnalyzerException,
+)
 
 import pymupdf
 
@@ -54,11 +57,77 @@ def scan_dtpp_file(zip):
             print(i, file_info)
             with dtpp_zip.open(file_info.filename) as approach_zip:
                 pdf_data = io.BytesIO(approach_zip.read())
-                pdf = pymupdf.open(filetype='pdf', stream=pdf_data)
+                pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
                 try:
                     extract_information_from_pdf(pdf, debug=False)
                 except PlateNeedsOCRException:
                     print("OCR needed")
+
+
+def analyze_dtpp_zips(folder):
+    """Given a folder containing the `DDTPPX_CYCLE.zip` files, analyzes all
+    the approach plates inside."""
+    folder_path = pathlib.Path(folder)
+
+    # Find the metadata file amongst the zips.
+    metadata = None
+    for zip_path in folder_path.glob("DDTPP*.zip"):
+        with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
+            for file in dtpp_zip.namelist():
+                if file != "d-TPP_Metafile.xml":
+                    continue
+                with dtpp_zip.open(file) as f:
+                    metadata = ET.fromstring(f.read())
+                break
+
+    if metadata is None:
+        raise ValueError("Did not locate d-TPP_Metafile.xml in any zip")
+
+    # Maps the approach file pdf name to the airport the approach is for, as
+    # well as the name of the approach.
+    approach_file_to_airport = {}
+    for airport in metadata.iter("airport_name"):
+        # Some local US only airports don't have icao identifiers.
+        airport_id = airport.attrib["icao_ident"]
+        if not airport_id:
+            airport_id = airport.attrib["apt_ident"]
+
+        for record in airport.iter("record"):
+            # Specifically note instrument approaches.
+            chart_code = record.find("chart_code").text
+            if chart_code != "IAP":
+                continue
+            pdf_file = record.find("pdf_name").text
+            chart_name = record.find("chart_name").text
+            approach_file_to_airport[pdf_file] = (airport_id, chart_name)
+
+    failures = []
+    # Now iterate through each approach, and attempt to analyze it.
+    for zip_path in folder_path.glob("DDTPP*.zip"):
+        with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
+            i = 0
+            for file in dtpp_zip.namelist():
+                if i > 10:
+                    break
+
+                if file not in approach_file_to_airport:
+                    print("Ignoring file", file)
+                    continue
+
+                i += 1
+
+                airport, approach = approach_file_to_airport[file]
+                with dtpp_zip.open(file) as approach_zip:
+                    pdf_data = io.BytesIO(approach_zip.read())
+                    pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
+                    try:
+                        print("Analyzing", file)
+                        extract_information_from_pdf(pdf, debug=False)
+                    except Exception as e:
+                        failures.append((e, file, zip_path.name, airport, approach))
+
+    for e, file, zip_path, airport, approach in failures:
+        print(f"Failed {file} in {zip_path}. {approach} at {airport} because: {str(e)}")
 
 
 def verify_contents_of_zip_against_metadata(folder):
@@ -74,38 +143,38 @@ def verify_contents_of_zip_against_metadata(folder):
     all_pdfs_in_metadata = set()
     approach_pdfs_in_zips = set()
 
-    meta_file = folder_path / 'd-tpp_Metafile.xml'
-    with meta_file.open('r') as f:
+    meta_file = folder_path / "d-tpp_Metafile.xml"
+    with meta_file.open("r") as f:
         metadata = ET.fromstring(f.read())
 
-    for airport in metadata.iter('airport_name'):
+    for airport in metadata.iter("airport_name"):
         # Some local US only airports don't have icao identifiers.
-        airport_id = airport.attrib['icao_ident']
+        airport_id = airport.attrib["icao_ident"]
         if not airport_id:
-            airport_id = airport.attrib['apt_ident']
-        
-        for record in airport.iter('record'):
-            pdf_file = record.find('pdf_name').text
+            airport_id = airport.attrib["apt_ident"]
+
+        for record in airport.iter("record"):
+            pdf_file = record.find("pdf_name").text
             if pdf_file:
                 all_pdfs_in_metadata.add(pdf_file)
 
             # Specifically note instrument approaches.
-            chart_code = record.find('chart_code').text
-            if chart_code != 'IAP':
+            chart_code = record.find("chart_code").text
+            if chart_code != "IAP":
                 continue
             approach_pdfs_in_metadata.add(pdf_file)
 
     # Now collect the pdfs in the actual zips.
-    for zip_path in folder_path.glob('DDTPP*.zip'):
+    for zip_path in folder_path.glob("DDTPP*.zip"):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             for file_info in dtpp_zip.infolist():
-                if 'compare_pdf' in file_info.filename or '.xml' in file_info.filename:
+                if "compare_pdf" in file_info.filename or ".xml" in file_info.filename:
                     break
                 approach_pdfs_in_zips.add(file_info.filename)
 
     # Let's see if there's any metadata files not present in the zips.
     in_metadata_not_in_zips = approach_pdfs_in_metadata - approach_pdfs_in_zips
-    assert in_metadata_not_in_zips == {'DELETED_JOB.PDF'}
+    assert in_metadata_not_in_zips == {"DELETED_JOB.PDF"}
 
     # Let's look at the ones in the zip but not in the metadata.
     in_zip_but_not_metadata = approach_pdfs_in_zips - all_pdfs_in_metadata
