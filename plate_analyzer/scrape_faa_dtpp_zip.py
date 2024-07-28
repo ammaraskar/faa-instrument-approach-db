@@ -83,6 +83,7 @@ def analyze_dtpp_zips(folder):
     if metadata is None:
         raise ValueError("Did not locate d-TPP_Metafile.xml in any zip")
 
+    skipped = []
     # Maps the approach file pdf name to the airport the approach is for, as
     # well as the name of the approach.
     approach_file_to_airport = {}
@@ -99,6 +100,23 @@ def analyze_dtpp_zips(folder):
                 continue
             pdf_file = record.find("pdf_name").text
             chart_name = record.find("chart_name").text
+
+            # Note if it's a civil or joint-use procedure. We can't parse
+            # military procedures yet because their pdfs don't have text...
+            civil_field = record.find("civil").text
+            is_military = civil_field == "N" or civil_field == "H"
+
+            # Skip visual and copter approaches.
+            if "VISUAL" in chart_name:
+                skipped.append(("VISUAL", chart_name, pdf_file))
+                continue
+            if "COPTER" in chart_name:
+                skipped.append(("COPTER", chart_name, pdf_file))
+                continue
+            if is_military:
+                skipped.append(("MILITARY", chart_name, pdf_file))
+                continue
+
             approach_file_to_airport[pdf_file] = (airport_id, chart_name)
 
     failures = []
@@ -107,7 +125,7 @@ def analyze_dtpp_zips(folder):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             i = 0
             for file in dtpp_zip.namelist():
-                if i > 10:
+                if i > 80:
                     break
 
                 if file not in approach_file_to_airport:
@@ -128,6 +146,8 @@ def analyze_dtpp_zips(folder):
 
     for e, file, zip_path, airport, approach in failures:
         print(f"Failed {file} in {zip_path}. {approach} at {airport} because: {str(e)}")
+
+    print("Num skipped: ", len(skipped))
 
 
 def verify_contents_of_zip_against_metadata(folder):
