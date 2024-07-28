@@ -17,11 +17,17 @@ def line_segment_as_rect_from_points(point1, point2):
     return rect
 
 
+def round_to_nearest(x, nearest):
+    """Rounds `x`, a float to the `nearest` number"""
+    x = int(round(x, 0))
+    return nearest * round(x / nearest)
+
+
 def make_rectangle_from_quad(quad: pymupdf.Quad) -> Optional[pymupdf.Rect]:
     # Sort by y-then-x to get the upper left, upper right and then lower left
     # lower right points of the quad.
     points = [quad.ul, quad.ur, quad.ll, quad.lr]
-    quad_points = [pymupdf.Point(round(p.x, 0), round(p.y, 0)) for p in points]
+    quad_points = [pymupdf.Point(round_to_nearest(p.x, nearest=7), round_to_nearest(p.y, nearest=7)) for p in points]
     quad_points_sorted = sorted(quad_points, key=lambda p: (p.y, p.x))
     ul, ur, ll, lr = quad_points_sorted
     # Check the top and bottom lines and see if they're straight.
@@ -45,10 +51,6 @@ def segment_plate_into_rectangles(plate, drawings, debug=False):
     lines = []
 
     for path in drawings:
-        # Very thick lines are usually arrows, not seperators.
-        if path["width"] is not None and (path["width"] > 2.0):
-            continue
-
         # If it's a quad and they line up, treat it like a rectangle.
         for item in path["items"]:
             if item[0] == "qu":

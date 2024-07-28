@@ -1,6 +1,7 @@
 import pymupdf
 
 from . import drawing_extraction
+from .segmentation import round_to_nearest
 
 import collections
 from dataclasses import dataclass
@@ -452,12 +453,6 @@ def pymupdf_extracted_words_to_string(words):
     into a string of the words.
     """
     return " ".join([w[4].strip() for w in words])
-
-
-def round_to_nearest(x, nearest):
-    """Rounds `x`, a float to the `nearest` number"""
-    x = int(round(x, 0))
-    return nearest * round(x / nearest)
 
 
 def pymupdf_group_words_into_lines_based_on_vertical_position(words):
