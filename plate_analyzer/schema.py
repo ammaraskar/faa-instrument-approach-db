@@ -19,10 +19,21 @@ class ApproachName(BaseModel):
     airport: str
 
 
+class Runway(BaseModel):
+    name: str
+    bearing: float
+    threshold_elevation: int
+
+
 class Airport(BaseModel):
-    pass
+    id: str
+    name: str
+    latitude: str
+    longitude: str
+    runways: List[Runway]
 
 
+# A few info classes related to analysis results and failures.
 class Failure(BaseModel):
     """Approaches that failed to analyze, the cause and the
     exact file it was in."""
