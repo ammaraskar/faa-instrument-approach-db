@@ -13,7 +13,6 @@ import xml.etree.ElementTree as ET
 from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
-    PlateAnalyzerException,
 )
 from plate_analyzer.schema import (
     AnalysisResult,
@@ -56,6 +55,7 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
 
     # Find the metadata file amongst the zips.
     metadata = None
+    dtpp_cycle = None
     for zip_path in folder_path.glob("DDTPP*.zip"):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             for file in dtpp_zip.namelist():
@@ -63,6 +63,9 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
                     continue
                 with dtpp_zip.open(file) as f:
                     metadata = ET.fromstring(f.read())
+                # File name is usually something like `DDTPPE_240711`
+                # Stuff after the underscore is the cycle.
+                dtpp_cycle = zip_path.stem.split("_")[1]
                 break
 
     if metadata is None:
@@ -167,7 +170,10 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
         )
 
     return AnalysisResult(
-        airports={}, failures=failures, skipped_approaches=skipped_approaches
+        dtpp_cycle_number=dtpp_cycle,
+        airports={},
+        failures=failures,
+        skipped_approaches=skipped_approaches,
     )
 
 
