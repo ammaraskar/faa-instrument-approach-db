@@ -38,6 +38,8 @@ def analyze_cifp_file(cifp_path):
             if runway is not None:
                 airports[airport_id].runways.append(runway)
 
+    return airports
+
 
 def handle_airport_record(record: arinc424.Record):
     airport_id = get_arinc424_field_value(record, "Airport ICAO Identifier")
@@ -60,7 +62,7 @@ def handle_airport_runway_record(record: arinc424.Record):
     runway_name = get_arinc424_field_value(record, "Runway Identifier")
     bearing = get_arinc424_field_value(record, "Runway Magnetic Bearing")
     # Seaplane runways often don't have exact bearings.
-    if bearing == '':
+    if bearing == "":
         return (airport_id, None)
     bearing = int(bearing) / 10.0
 

@@ -14,6 +14,7 @@ from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
 )
+from plate_analyzer.cifp_analysis import analyze_cifp_file
 from plate_analyzer.schema import (
     AnalysisResult,
     Failure,
@@ -48,9 +49,11 @@ def scan_dtpp_file(zip):
                     print("OCR needed")
 
 
-def analyze_dtpp_zips(folder) -> AnalysisResult:
+def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
     """Given a folder containing the `DDTPPX_CYCLE.zip` files, analyzes all
-    the approach plates inside."""
+    the approach plates inside. Combines with airport data from the
+    `cifp` file to spit out a full analysis.
+    """
     folder_path = pathlib.Path(folder)
 
     # Find the metadata file amongst the zips.
@@ -114,16 +117,15 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
             approach_file_to_airport[pdf_file] = (airport_id, chart_name)
 
     failures = []
+    approaches_by_airport = collections.defaultdict(list)
     # Now iterate through each approach, and attempt to analyze it.
     for zip_path in folder_path.glob("DDTPP*.zip"):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             i = 0
             for file in dtpp_zip.namelist():
                 # TODO: remove this, for limited testing
-                # if i > 100:
-                #    break
-                if file != "06065R8.PDF":
-                    continue
+                if i > 10:
+                    break
 
                 if file not in approach_file_to_airport:
                     print("Ignoring file", file)
@@ -137,7 +139,8 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
                     pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
                     try:
                         print("Analyzing", file)
-                        extract_information_from_pdf(pdf, debug=False)
+                        approach_info = extract_information_from_pdf(pdf, debug=False)
+                        approaches_by_airport[airport].append(approach_info)
                     except Exception as e:
                         exc_frame = traceback.extract_tb(e.__traceback__, limit=1)[0]
                         failures.append(
@@ -169,9 +172,16 @@ def analyze_dtpp_zips(folder) -> AnalysisResult:
             f"Exception: {failure.exception_message}"
         )
 
+    cifp_airports = analyze_cifp_file(cifp_file)
+    # Merge data from the cifp dataset with the approach plates.
+    airports = {}
+    for airport, approaches in approaches_by_airport.items():
+        cifp_airport = cifp_airports[airport]
+        airports[airport] = cifp_airport
+
     return AnalysisResult(
         dtpp_cycle_number=dtpp_cycle,
-        airports={},
+        airports=airports,
         failures=failures,
         skipped_approaches=skipped_approaches,
     )
