@@ -216,7 +216,7 @@ def create_approach_to_airport(
         runway = runway_matches.group(1)
         runway = f"RW{runway}"
         # Cool, now see if we have this runway in the cifp airport info.
-        airport_runway = [runway for runway in airport.runways if runway.name == runway]
+        airport_runway = [r for r in airport.runways if r.name == runway]
 
         # Calculate the offset from the approach course to the runway.
         if airport_runway and approach_course is not None:

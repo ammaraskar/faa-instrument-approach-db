@@ -48,7 +48,7 @@ def test_create_approach_to_airport():
     )
     assert approach.name == "ILS OR LOC RWY 19L"
     assert approach.plate_file == "1.pdf"
-    assert approach.runway == "19L"
+    assert approach.runway == "RW19L"
     assert approach.approach_course == 193
     assert approach.runway_approach_offset_angle == 1.0
 
