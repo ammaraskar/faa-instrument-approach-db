@@ -52,6 +52,10 @@ def test_create_approach_to_airport():
     assert approach.approach_course == 193
     assert approach.runway_approach_offset_angle == 1.0
 
+    assert "Simultaenous approach authorized." in approach.comments.text_comments
+    assert approach.comments.has_non_standard_takeoff_minimums
+    assert approach.comments.has_non_standard_alternative_requirements
+
     assert approach.missed_instructions == plate_info.missed_approach_instructions[1]
 
     assert approach.has_dme_arc == False

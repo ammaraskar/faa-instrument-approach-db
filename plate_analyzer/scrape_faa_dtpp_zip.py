@@ -26,6 +26,7 @@ from plate_analyzer.schema import (
     ApproachName,
     SkippedApproach,
     Approach,
+    ApproachComments,
 )
 
 import pymupdf
@@ -227,6 +228,11 @@ def create_approach_to_airport(
     return Approach(
         name=approach_name,
         plate_file=file_name,
+        comments=ApproachComments(
+            text_comments=plate_info.comments.comments,
+            has_non_standard_takeoff_minimums=plate_info.comments.non_standard_takeoff_minimums,
+            has_non_standard_alternative_requirements=plate_info.comments.non_standard_alternative_requirements,
+        ),
         missed_instructions=plate_info.missed_approach_instructions[1],
         # Runway/approach course info.
         approach_course=approach_course,

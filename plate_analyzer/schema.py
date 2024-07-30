@@ -19,6 +19,12 @@ class ApproachName(BaseModel):
     airport: str
 
 
+class ApproachComments(BaseModel):
+    has_non_standard_takeoff_minimums: bool
+    has_non_standard_alternative_requirements: bool
+    text_comments: str
+
+
 class Approach(BaseModel):
     name: str
     plate_file: str
@@ -29,6 +35,7 @@ class Approach(BaseModel):
     runway: Optional[str]
     runway_approach_offset_angle: Optional[float]
 
+    comments: ApproachComments
     # Approach instructions.
     missed_instructions: str
 
