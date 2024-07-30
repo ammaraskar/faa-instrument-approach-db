@@ -214,25 +214,28 @@ def create_approach_to_airport(
     runway_matches = RUNWAY_NAME_REGEX.search(approach_name)
     if runway_matches:
         runway = runway_matches.group(1)
-        runway_name = f"RW{runway}"
+        runway = f"RW{runway}"
         # Cool, now see if we have this runway in the cifp airport info.
-        airport_runway = [
-            runway for runway in airport.runways if runway.name == runway_name
-        ]
+        airport_runway = [runway for runway in airport.runways if runway.name == runway]
 
-        if len(airport_runway) > 0 and approach_course is not None:
+        # Calculate the offset from the approach course to the runway.
+        if airport_runway and approach_course is not None:
             runway_approach_offset_angle = abs(
                 approach_course - airport_runway[0].bearing
             )
 
-    # See if we have an approach course, if so calculate the offset of the
-    # approach course to the airport.
     return Approach(
         name=approach_name,
         plate_file=file_name,
+        missed_instructions=plate_info.missed_approach_instructions[1],
+        # Runway/approach course info.
         approach_course=approach_course,
         runway=runway,
         runway_approach_offset_angle=runway_approach_offset_angle,
+        # Approach features.
+        has_dme_arc=plate_info.has_dme_arc,
+        has_procedure_turn=plate_info.has_procedure_turn,
+        has_hold_in_lieu_of_procedure_turn=plate_info.has_hold_in_lieu_of_procedure_turn,
     )
 
 

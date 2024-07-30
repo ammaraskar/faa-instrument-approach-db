@@ -21,6 +21,7 @@ def test_create_approach_to_airport():
         airport_name="SAN FRANCISCO INTL (SFO)",
         approach_course=(None, "APP CRS\n 193°"),
         has_dme_arc=False,
+        has_procedure_turn=False,
         has_hold_in_lieu_of_procedure_turn=False,
         waypoints={
             "UPEND": UPEND_waypoint,
@@ -39,7 +40,6 @@ def test_create_approach_to_airport():
             "direct to PRTLA and hold. * Missed approach requires minimum climb "
             "of 357 feet per NM to 2000.",
         ),
-        has_procedure_turn=False,
         approach_minimums=[],
     )
 
@@ -51,3 +51,9 @@ def test_create_approach_to_airport():
     assert approach.runway == "19L"
     assert approach.approach_course == 193
     assert approach.runway_approach_offset_angle == 1.0
+
+    assert approach.missed_instructions == plate_info.missed_approach_instructions[1]
+
+    assert approach.has_dme_arc == False
+    assert approach.has_hold_in_lieu_of_procedure_turn == False
+    assert approach.has_procedure_turn == False

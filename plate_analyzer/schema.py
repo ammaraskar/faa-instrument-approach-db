@@ -29,6 +29,14 @@ class Approach(BaseModel):
     runway: Optional[str]
     runway_approach_offset_angle: Optional[float]
 
+    # Approach instructions.
+    missed_instructions: str
+
+    # Features of the approach.
+    has_dme_arc: bool
+    has_procedure_turn: bool
+    has_hold_in_lieu_of_procedure_turn: bool
+
 
 class Runway(BaseModel):
     name: str
