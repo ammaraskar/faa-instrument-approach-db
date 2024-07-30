@@ -14,6 +14,7 @@ from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
 )
+from plate_analyzer.text_extraction import SegmentedPlate
 from plate_analyzer.cifp_analysis import analyze_cifp_file
 from plate_analyzer.schema import (
     AnalysisResult,
@@ -21,6 +22,7 @@ from plate_analyzer.schema import (
     Airport,
     ApproachName,
     SkippedApproach,
+    Approach,
 )
 
 import pymupdf
@@ -140,7 +142,9 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
                     try:
                         print("Analyzing", file)
                         approach_info = extract_information_from_pdf(pdf, debug=False)
-                        approaches_by_airport[airport].append(approach_info)
+                        approaches_by_airport[airport].append(
+                            (approach_info, approach, file)
+                        )
                     except Exception as e:
                         exc_frame = traceback.extract_tb(e.__traceback__, limit=1)[0]
                         failures.append(
@@ -177,6 +181,12 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
     airports = {}
     for airport, approaches in approaches_by_airport.items():
         cifp_airport = cifp_airports[airport]
+        for plate_info, approach_name, file_name in approaches:
+            cifp_airport.approaches.append(
+                create_approach_to_airport(
+                    cifp_airport, plate_info, approach_name, file_name
+                )
+            )
         airports[airport] = cifp_airport
 
     return AnalysisResult(
@@ -185,6 +195,14 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
         failures=failures,
         skipped_approaches=skipped_approaches,
     )
+
+
+def create_approach_to_airport(
+    airport: Airport, plate_info: SegmentedPlate, approach_name: str, file_name: str
+) -> Approach:
+    # See if we have an approach course, if so calculate the offset of the
+    # approach course to the airport.
+    return Approach(name=approach_name, plate_file=file_name)
 
 
 def verify_contents_of_zip_against_metadata(folder):

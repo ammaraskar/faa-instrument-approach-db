@@ -19,6 +19,11 @@ class ApproachName(BaseModel):
     airport: str
 
 
+class Approach(BaseModel):
+    name: str
+    plate_file: str
+
+
 class Runway(BaseModel):
     name: str
     bearing: float
@@ -31,6 +36,7 @@ class Airport(BaseModel):
     latitude: str
     longitude: str
     runways: List[Runway]
+    approaches: List[Approach]
 
 
 # A few info classes related to analysis results and failures.

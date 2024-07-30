@@ -53,6 +53,7 @@ def handle_airport_record(record: arinc424.Record):
         latitude=latitude,
         longitude=longitude,
         runways=[],
+        approaches=[],
     )
 
 
