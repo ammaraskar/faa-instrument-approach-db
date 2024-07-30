@@ -10,6 +10,9 @@ import pathlib
 import io
 import traceback
 import xml.etree.ElementTree as ET
+import re
+from typing import Optional
+
 from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
@@ -126,7 +129,7 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
             i = 0
             for file in dtpp_zip.namelist():
                 # TODO: remove this, for limited testing
-                if i > 10:
+                if i > 2:
                     break
 
                 if file not in approach_file_to_airport:
@@ -197,12 +200,55 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
     )
 
 
+RUNWAY_NAME_REGEX = re.compile(r"RWY (\d\d?[A-Z]?)")
+
+
 def create_approach_to_airport(
     airport: Airport, plate_info: SegmentedPlate, approach_name: str, file_name: str
 ) -> Approach:
+
+    approach_course = get_approach_course_in_degrees(plate_info)
+    # See if this approach is to a runway.
+    runway = None
+    runway_approach_offset_angle = None
+    runway_matches = RUNWAY_NAME_REGEX.search(approach_name)
+    if runway_matches:
+        runway = runway_matches.group(1)
+        runway_name = f"RW{runway}"
+        # Cool, now see if we have this runway in the cifp airport info.
+        airport_runway = [
+            runway for runway in airport.runways if runway.name == runway_name
+        ]
+
+        if len(airport_runway) > 0 and approach_course is not None:
+            runway_approach_offset_angle = abs(
+                approach_course - airport_runway[0].bearing
+            )
+
     # See if we have an approach course, if so calculate the offset of the
     # approach course to the airport.
-    return Approach(name=approach_name, plate_file=file_name)
+    return Approach(
+        name=approach_name,
+        plate_file=file_name,
+        approach_course=approach_course,
+        runway=runway,
+        runway_approach_offset_angle=runway_approach_offset_angle,
+    )
+
+
+APPROACH_COURSE_REGEX = re.compile(r"(\d\d?\d?)°")
+
+
+def get_approach_course_in_degrees(plate_info: SegmentedPlate) -> Optional[float]:
+    app_course = plate_info.approach_course[1]
+    degree_match = APPROACH_COURSE_REGEX.search(app_course)
+    if not degree_match:
+        return
+
+    try:
+        return float(degree_match.group(1))
+    except ValueError:
+        return
 
 
 def verify_contents_of_zip_against_metadata(folder):

@@ -23,6 +23,12 @@ class Approach(BaseModel):
     name: str
     plate_file: str
 
+    approach_course: Optional[float]
+    # The runway this approach goes to and the degrees the approach
+    # is off from the runway, if the approach goes to a runway.
+    runway: Optional[str]
+    runway_approach_offset_angle: Optional[float]
+
 
 class Runway(BaseModel):
     name: str
