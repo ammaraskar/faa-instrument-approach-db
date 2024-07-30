@@ -11,7 +11,7 @@ import io
 import traceback
 import xml.etree.ElementTree as ET
 import re
-from typing import Optional
+from typing import Optional, Tuple, List
 
 from plate_analyzer import (
     extract_information_from_pdf,
@@ -27,6 +27,7 @@ from plate_analyzer.schema import (
     SkippedApproach,
     Approach,
     ApproachComments,
+    ApproachType,
 )
 
 import pymupdf
@@ -201,20 +202,15 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
     )
 
 
-RUNWAY_NAME_REGEX = re.compile(r"RWY (\d\d?[A-Z]?)")
-
-
 def create_approach_to_airport(
     airport: Airport, plate_info: SegmentedPlate, approach_name: str, file_name: str
 ) -> Approach:
 
     approach_course = get_approach_course_in_degrees(plate_info)
     # See if this approach is to a runway.
-    runway = None
+    approach_types, runway = get_approach_type_and_runway_from_title(approach_name)
     runway_approach_offset_angle = None
-    runway_matches = RUNWAY_NAME_REGEX.search(approach_name)
-    if runway_matches:
-        runway = runway_matches.group(1)
+    if runway is not None:
         runway = f"RW{runway}"
         # Cool, now see if we have this runway in the cifp airport info.
         airport_runway = [r for r in airport.runways if r.name == runway]
@@ -228,6 +224,7 @@ def create_approach_to_airport(
     return Approach(
         name=approach_name,
         plate_file=file_name,
+        types=approach_types,
         comments=ApproachComments(
             text_comments=plate_info.comments.comments,
             has_non_standard_takeoff_minimums=plate_info.comments.non_standard_takeoff_minimums,
@@ -243,6 +240,64 @@ def create_approach_to_airport(
         has_procedure_turn=plate_info.has_procedure_turn,
         has_hold_in_lieu_of_procedure_turn=plate_info.has_hold_in_lieu_of_procedure_turn,
     )
+
+
+RUNWAY_NAME_REGEX = re.compile(r"RWY (\d\d?[A-Z]?)")
+APPROACH_NAME_SUFFIX_REGEX = re.compile(r"-[A-Z]$")
+APPROACH_TYPE_SUFFIX_REGEX = re.compile(r"\b[A-Z]$$")
+
+
+def get_approach_type_and_runway_from_title(
+    approach_name: str,
+) -> Tuple[List[str], str]:
+    """
+    Take an approch name like: ILS OR LOC RWY 19L
+    and determine the approach types, ['ILS', 'LOC'] and the runway if present.
+    """
+    runway = None
+    runway_matches = RUNWAY_NAME_REGEX.search(approach_name)
+    # See if the approach is to a runway.
+    if runway_matches:
+        runway = runway_matches.group(1)
+        # Delete everything after the runway, so we're left with just
+        # `ILS or LOC`
+        approach_name = approach_name[: runway_matches.span()[0]].strip()
+    else:
+        # Otherwise look for an approach suffix, used when an approach doesn't
+        # go to a runway like: VOR-A
+        # and strip it out.
+        approach_name = APPROACH_NAME_SUFFIX_REGEX.sub("", approach_name).strip()
+
+    # Some military plates will have things like `HI-TACAN` or `HI-ILS or LOC`
+    # indicating a high altitude approach.
+    has_high_suffix = False
+    if approach_name.startswith("HI-"):
+        has_high_suffix = True
+        approach_name = approach_name.replace("HI-", "")
+
+    approach_types = []
+    for type_string in approach_name.split(" OR "):
+        # Ignore PRM approaches for now, they seem pretty esoteric lol.
+        if "PRM" in type_string:
+            type_string = type_string.replace("PRM", "").strip()
+        # Ignore the converging prefix for ISL approaches.
+        if "CONVERGING ILS" in type_string:
+            type_string = type_string.replace("CONVERGING ", "")
+        # Some VOR approaches have a suffix to denote two different types of
+        # VORs in, like `VOR-1 RWY 14L` and `VOR-3 RWY 14L`.
+        if type_string.startswith("VOR") and type_string[-2] == "-":
+            type_string = type_string[:-2]
+
+        # Check if there is a suffix on this approach. Multiple approaches into
+        # the same runway will often get a suffix like: `RNAV (GPS) Y`
+        type_string = APPROACH_TYPE_SUFFIX_REGEX.sub("", type_string.strip())
+        approach_types.append(
+            ApproachType.from_approach_title(
+                type_string.strip(), is_high_alt=has_high_suffix
+            )
+        )
+
+    return (approach_types, runway)
 
 
 APPROACH_COURSE_REGEX = re.compile(r"(\d\d?\d?)°")

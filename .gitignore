@@ -1,6 +1,7 @@
 # Testing files
 output.json
 
+test_data/d-tpp_Metafile.xml
 /lines.png
 /segmented.png
 /drawings.png

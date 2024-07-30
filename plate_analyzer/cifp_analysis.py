@@ -12,6 +12,7 @@ VHF_NAVAID_CODE = "D"
 ENROUTE_WAYPOINT_CODE = "EA"
 AIRPORT_CODE = "PA"
 AIRPORT_RUNWAY_CODE = "PG"
+AIRPORT_APPROACH_CODE = "PF"
 
 
 def analyze_cifp_file(cifp_path):
