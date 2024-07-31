@@ -138,14 +138,16 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
                     continue
 
                 i += 1
-                percent_progress = round(i / len(approach_file_to_airport), 1)
+                percent_progress = round(i / len(approach_file_to_airport) * 100, 1)
 
                 airport, approach = approach_file_to_airport[file]
                 with dtpp_zip.open(file) as approach_zip:
                     pdf_data = io.BytesIO(approach_zip.read())
                     pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
                     try:
-                        print(f"Analyzing '{file}'. {percent_progress}%")
+                        print(
+                            f"Analyzing '{file}'. {i} / {len(approach_file_to_airport)} = {percent_progress}%"
+                        )
                         approach_info = extract_information_from_pdf(pdf, debug=False)
                         approaches_by_airport[airport].append(
                             (approach_info, approach, file)
