@@ -11,4 +11,4 @@ results = scrape_faa_dtpp_zip.analyze_dtpp_zips(
     "../../Downloads/faa_dttp/", cifp_file="../../Downloads/faa_dttp/FAACIFP18"
 )
 with open("output.json", "w") as f:
-    f.write(results.model_dump_json(indent=2))
+    f.write(results.model_dump_json())

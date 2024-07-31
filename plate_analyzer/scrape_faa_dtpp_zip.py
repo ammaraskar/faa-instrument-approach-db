@@ -133,10 +133,6 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             i = 0
             for file in dtpp_zip.namelist():
-                # TODO: remove this, for limited testing
-                if i > 2:
-                    break
-
                 if file not in approach_file_to_airport:
                     print("Ignoring file", file)
                     continue
@@ -148,7 +144,9 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
                     pdf_data = io.BytesIO(approach_zip.read())
                     pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
                     try:
-                        print("Analyzing", file)
+                        print(
+                            f"Analyzing '{file}'. {int(i / len(approach_file_to_airport))}%"
+                        )
                         approach_info = extract_information_from_pdf(pdf, debug=False)
                         approaches_by_airport[airport].append(
                             (approach_info, approach, file)
