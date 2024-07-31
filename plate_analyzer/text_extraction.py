@@ -4,6 +4,7 @@ from . import drawing_extraction
 from .segmentation import round_to_nearest
 
 import collections
+import re
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict
 
@@ -205,6 +206,10 @@ def extract_text_from_segmented_plate(
     )
     comments_text = plate.get_text(option="words", sort=True, clip=right_side_comments)
     comments_text = pymupdf_extracted_words_to_string(comments_text)
+    # Remove solitary As and Ts from the start and end of comments. More than
+    # likely just accidentally included the alternatives symbols.
+    comments_text = re.sub(r"^\b(T|A)\b", "", comments_text, count=2).strip()
+    comments_text = re.sub(r"\b(T|A)\b$", "", comments_text, count=2).strip()
 
     comments = PlateComments(
         non_standard_takeoff_minimums,

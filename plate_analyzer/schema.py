@@ -5,7 +5,7 @@ Output schema for the plate analyzer.
 from pydantic import BaseModel
 
 from enum import Enum
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Literal
 
 
 class ApproachType(str, Enum):
@@ -87,6 +87,27 @@ HIGH_ALTITUDE_APPROACH_TITLE_TYPES = {
 }
 
 
+class MinimumsValue(BaseModel):
+    # e.g 3000 altitude 3/4 visibility
+    altitude: str
+    rvr: Optional[str]
+    visibility: Optional[str]
+
+
+APPROACH_NOT_ALLOWED = "NA"
+
+
+class ApproachMinimums(BaseModel):
+    # Type of minimums, e.g ILS, LPV, LNAV+VNAV etc.
+    minimums_type: str
+    # Altitude, visibility for each category. NA if not allowed. None if failed
+    # to parse.
+    cat_a: MinimumsValue | Literal["NA"] | None
+    cat_b: MinimumsValue | Literal["NA"] | None
+    cat_c: MinimumsValue | Literal["NA"] | None
+    cat_d: MinimumsValue | Literal["NA"] | None
+
+
 class ApproachComments(BaseModel):
     has_non_standard_takeoff_minimums: bool
     has_non_standard_alternative_requirements: bool
@@ -118,6 +139,9 @@ class Approach(BaseModel):
     has_dme_arc: bool
     has_procedure_turn: bool
     has_hold_in_lieu_of_procedure_turn: bool
+
+    # Any minimums that were successfuly parsed, may be empty.
+    minimums: List[ApproachMinimums]
 
 
 class Runway(BaseModel):

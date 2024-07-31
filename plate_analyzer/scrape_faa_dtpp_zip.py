@@ -17,7 +17,7 @@ from plate_analyzer import (
     extract_information_from_pdf,
     PlateNeedsOCRException,
 )
-from plate_analyzer.text_extraction import SegmentedPlate
+from plate_analyzer.text_extraction import SegmentedPlate, ApproachMinimum
 from plate_analyzer.cifp_analysis import analyze_cifp_file
 from plate_analyzer.schema import (
     AnalysisResult,
@@ -28,6 +28,9 @@ from plate_analyzer.schema import (
     Approach,
     ApproachComments,
     ApproachType,
+    ApproachMinimums,
+    MinimumsValue,
+    APPROACH_NOT_ALLOWED,
 )
 
 import pymupdf
@@ -214,12 +217,15 @@ def create_approach_to_airport(
         runway = f"RW{runway}"
         # Cool, now see if we have this runway in the cifp airport info.
         airport_runway = [r for r in airport.runways if r.name == runway]
-
         # Calculate the offset from the approach course to the runway.
         if airport_runway and approach_course is not None:
             runway_approach_offset_angle = abs(
                 approach_course - airport_runway[0].bearing
             )
+        # If the runway isn't in cifp data, make it None so we don't include
+        # it in the output.
+        if not airport_runway:
+            runway = None
 
     return Approach(
         name=approach_name,
@@ -239,6 +245,41 @@ def create_approach_to_airport(
         has_dme_arc=plate_info.has_dme_arc,
         has_procedure_turn=plate_info.has_procedure_turn,
         has_hold_in_lieu_of_procedure_turn=plate_info.has_hold_in_lieu_of_procedure_turn,
+        # Minimums.
+        minimums=minimums_from_plate_info(plate_info),
+    )
+
+
+def minimums_from_plate_info(plate_info: SegmentedPlate) -> List[ApproachMinimums]:
+    minimums = []
+
+    for min in plate_info.approach_minimums:
+        # Get rid of any footnote markers.
+        approach_type = min.approach_type.replace("*", "").replace("#", "").strip()
+        minimums.append(
+            ApproachMinimums(
+                minimums_type=approach_type,
+                cat_a=minimums_values_from_plate(min.cat_a),
+                cat_b=minimums_values_from_plate(min.cat_b),
+                cat_c=minimums_values_from_plate(min.cat_c),
+                cat_d=minimums_values_from_plate(min.cat_d),
+            )
+        )
+
+    return minimums
+
+
+def minimums_values_from_plate(
+    minimums_values: Optional[ApproachMinimum],
+) -> MinimumsValue:
+    if minimums_values is None:
+        return APPROACH_NOT_ALLOWED
+    if minimums_values == "Unknown":
+        return None
+    return MinimumsValue(
+        altitude=minimums_values.altitude,
+        rvr=minimums_values.rvr,
+        visibility=minimums_values.visibility,
     )
 
 
