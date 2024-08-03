@@ -128,10 +128,10 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
 
     failures = []
     approaches_by_airport = collections.defaultdict(list)
+    i = 0
     # Now iterate through each approach, and attempt to analyze it.
     for zip_path in folder_path.glob("DDTPP*.zip"):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
-            i = 0
             for file in dtpp_zip.namelist():
                 if file not in approach_file_to_airport:
                     print("Ignoring file", file)
