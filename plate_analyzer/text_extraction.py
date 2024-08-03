@@ -364,34 +364,13 @@ def extract_minimums(
     return all_minimums
 
 
-def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
-    # Check if the procedure is allowed for this category.
-    text = plate.get_text(option="text", clip=box).strip()
-    if "NA" in text:
-        return None
-    # If the text "CAT" appears in the box, this is a special ILS cat approach,
-    # we don't handle that format of minimums yet.
-    if "CAT" in text:
-        return "Unknown"
+MINIMUMS_TEXT_NEXT_LINE_THRESHOLD = 4
 
-    # For circling minimums, we expect a second line for the HAA
-    # (Height Above Airport) during circling, but we don't really need that
-    # information. So only get letters from one half of the rectangle, either
-    # the top or left side depending on the width of the box.
-    if "CIRCLING" in minimum_type and ((box.width / box.height) > 5):
-        # Very horizontal box, HHA is on the right.
-        box = pymupdf.Rect(
-            box.top_left, box.bottom_right - pymupdf.Point(box.width * 0.5, 0)
-        )
-    elif "CIRCLING" in minimum_type and ((box.width / box.height) <= 5):
-        # Regular box, HHA is on the bottom.
-        box = pymupdf.Rect(
-            box.top_left, box.bottom_right - pymupdf.Point(0, box.height * 0.57)
-        )
 
+def get_minimums_text_letters(box, plate):
+    # Gets the letters from a minimums box.
     raw_text = plate.get_text(option="rawdict", clip=box)
-    # We will iterate over the minimums character-by-character sorted by x
-    # coordinate.
+
     letters = []
     for block in raw_text["blocks"]:
         for line in block["lines"]:
@@ -404,6 +383,27 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
     # Remove spaces.
     letters = [l for l in letters if l["c"] != " "]
 
+    # Remove any characters that are very far apart vertically from the first line.
+    min_y = min(letter["origin"][1] for letter in letters)
+    filtered_letters = []
+    for letter in letters:
+        if abs(letter["origin"][1] - min_y) < MINIMUMS_TEXT_NEXT_LINE_THRESHOLD:
+            filtered_letters.append(letter)
+
+    return filtered_letters
+
+
+def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
+    # Check if the procedure is allowed for this category.
+    text = plate.get_text(option="text", clip=box).strip()
+    if "NA" in text:
+        return None
+    # If the text "CAT" appears in the box, this is a special ILS cat approach,
+    # we don't handle that format of minimums yet.
+    if "CAT" in text:
+        return "Unknown"
+
+    letters = get_minimums_text_letters(box, plate)
     # Gets set to visibility or rvr depending on what we're expecting next.
     next_number = None
     altitude = ""
@@ -448,7 +448,7 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
                 visibility = f"{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}"
     elif next_number == "rvr":
         # RVR could be up to two numbers
-        pass
+        rvr = f"{letters[i + 1]["c"]}{letters[i + 2]["c"]}"
     else:
         raise NotImplemented()
 

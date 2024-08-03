@@ -12,6 +12,7 @@ TEST_DATA_DIR = Path(__file__).parent / ".." / "test_data"
 TEST_PLATE = TEST_DATA_DIR / "05035R7.pdf"
 ATHENS_TEST_PLATE = TEST_DATA_DIR / "00983ILD27.pdf"
 MARIN_STATE_TEST_PLATE = TEST_DATA_DIR / "05222VT15.pdf"
+PORTLAND_TEST_PLATE = TEST_DATA_DIR / "00330IL10R.pdf"
 
 
 @pytest.fixture(scope="session")
@@ -232,3 +233,41 @@ def test_extract_gets_correct_minimums_for_martin(marin_state_info):
     assert circling_approach.cat_c.visibility == "2 3/4"
     assert circling_approach.cat_d.altitude == "920"
     assert circling_approach.cat_d.visibility == "3"
+
+
+@pytest.fixture(scope="session")
+def portland_info():
+    return plate_analyzer.extract_information_from_plate(PORTLAND_TEST_PLATE)
+
+
+def test_extract_gets_correct_approach_title_for_portland(portland_info):
+    assert portland_info.approach_name == "ILS or LOC RWY 10R"
+    assert portland_info.airport_name == "PORTLAND INTL (PDX)"
+
+
+def test_extract_gets_correct_minimums_for_portland(portland_info):
+    # Test for whe non-circling minimums have a height above threshold number.
+    ils_approach = portland_info.approach_minimums[0]
+    assert ils_approach.approach_type == "S-ILS 10R"
+    assert ils_approach.cat_a.altitude == "224"
+    assert ils_approach.cat_a.rvr == "18"
+    assert ils_approach.cat_d == ils_approach.cat_a
+    
+    localizer_approach = portland_info.approach_minimums[1]
+    assert localizer_approach.approach_type == "S-LOC 10R"
+    assert localizer_approach.cat_a.altitude == "860"
+    assert localizer_approach.cat_a.rvr == "24"
+    assert localizer_approach.cat_b.altitude == "860"
+    assert localizer_approach.cat_b.rvr == "40"
+    assert localizer_approach.cat_c.altitude == "860"
+    assert localizer_approach.cat_c.visibility == "1 7/8"
+    assert localizer_approach.cat_d == localizer_approach.cat_c
+
+    circling_approach = portland_info.approach_minimums[2]
+    assert circling_approach.approach_type == "CIRCLING (Expanded Radius)"
+    assert circling_approach.cat_a.altitude == "860"
+    assert circling_approach.cat_a.visibility == "1 1/4"
+    assert circling_approach.cat_b == circling_approach.cat_a
+    assert circling_approach.cat_c.altitude == "1060"
+    assert circling_approach.cat_c.visibility == "3"
+    assert circling_approach.cat_d == circling_approach.cat_c
