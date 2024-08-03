@@ -252,7 +252,7 @@ def test_extract_gets_correct_minimums_for_portland(portland_info):
     assert ils_approach.cat_a.altitude == "224"
     assert ils_approach.cat_a.rvr == "18"
     assert ils_approach.cat_d == ils_approach.cat_a
-    
+
     localizer_approach = portland_info.approach_minimums[1]
     assert localizer_approach.approach_type == "S-LOC 10R"
     assert localizer_approach.cat_a.altitude == "860"
