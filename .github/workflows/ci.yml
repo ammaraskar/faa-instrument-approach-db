@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3
+      uses: actions/setup-python@v3
+    - name: Install dependencies
+      run: |
+        pip install -r requirements_dev.txt
+    - name: Check Formatting
+      run: |
+        black . --check 
+    - name: Test with pytest
+      run: |
+        python -m pytest
