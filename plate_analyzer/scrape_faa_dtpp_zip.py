@@ -218,8 +218,8 @@ def create_approach_to_airport(
         airport_runway = [r for r in airport.runways if r.name == runway]
         # Calculate the offset from the approach course to the runway.
         if airport_runway and approach_course is not None:
-            runway_approach_offset_angle = abs(
-                approach_course - airport_runway[0].bearing
+            runway_approach_offset_angle = calculate_heading_angle_difference(
+                approach_course, airport_runway[0].bearing
             )
         # If the runway isn't in cifp data, make it None so we don't include
         # it in the output.
@@ -353,6 +353,19 @@ def get_approach_course_in_degrees(plate_info: SegmentedPlate) -> Optional[float
         return float(degree_match.group(1))
     except ValueError:
         return
+
+
+def calculate_heading_angle_difference(h1: float, h2: float) -> float:
+    """
+    Calculate the difference between two headings.
+
+    For example:
+        350°, 355° = 5°.
+        359°, 04° = 6°
+    """
+    angle1 = (h1 - h2) % 360
+    angle2 = (h2 - h1) % 360
+    return min(angle1, angle2)
 
 
 def verify_contents_of_zip_against_metadata(folder):

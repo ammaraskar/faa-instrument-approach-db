@@ -1,6 +1,7 @@
 from plate_analyzer.scrape_faa_dtpp_zip import (
     create_approach_to_airport,
     get_approach_type_and_runway_from_title,
+    calculate_heading_angle_difference,
 )
 from plate_analyzer.text_extraction import SegmentedPlate, Waypoint, PlateComments
 from plate_analyzer.schema import Airport, Runway, ApproachType
@@ -8,6 +9,20 @@ from plate_analyzer.schema import Airport, Runway, ApproachType
 from pathlib import Path
 
 import pytest
+
+
+def test_calculate_heading_angle_difference():
+    simple_difference = calculate_heading_angle_difference(10, 0)
+    assert simple_difference == 10
+
+    around_the_top = calculate_heading_angle_difference(355, 10)
+    assert around_the_top == 15
+
+    large_difference = calculate_heading_angle_difference(0, 180)
+    assert large_difference == 180
+
+    almost_large = calculate_heading_angle_difference(179, 360)
+    assert almost_large == 179
 
 
 def test_create_approach_to_airport():
