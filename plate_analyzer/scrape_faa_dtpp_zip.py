@@ -153,7 +153,7 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
                             (approach_info, approach, file)
                         )
                     except Exception as e:
-                        exc_frame = traceback.extract_tb(e.__traceback__, limit=1)[0]
+                        exc_frame = traceback.extract_tb(e.__traceback__)[-1]
                         failures.append(
                             Failure(
                                 exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
