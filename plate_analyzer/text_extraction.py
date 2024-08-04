@@ -365,6 +365,9 @@ def extract_minimums(
 
 
 MINIMUMS_TEXT_NEXT_LINE_THRESHOLD = 4
+# At what percentage of a character's height is a number considered a small
+# fraction character.
+FRACTION_HEIGHT_PERCENTAGE = 0.8
 
 
 def get_minimums_text_letters(box, plate):
@@ -378,19 +381,45 @@ def get_minimums_text_letters(box, plate):
                 for char in span["chars"]:
                     letters.append(char)
 
-    # Sort by x-cordinate.
-    letters.sort(key=lambda c: c["origin"][0])
-    # Remove spaces.
-    letters = [l for l in letters if l["c"] != " "]
-
     # Remove any characters that are very far apart vertically from the first line.
     min_y = min(letter["origin"][1] for letter in letters)
     filtered_letters = []
     for letter in letters:
         if abs(letter["origin"][1] - min_y) < MINIMUMS_TEXT_NEXT_LINE_THRESHOLD:
             filtered_letters.append(letter)
+    letters = filtered_letters
 
-    return filtered_letters
+    # Remove spaces.
+    letters = [l for l in letters if l["c"] != " "]
+    # Sort by x-cordinate.
+    letters.sort(key=lambda c: c["origin"][0])
+
+    # HACK: occasionally, we will have dashes where the fraction that comes
+    # after actually has a x-coordinate that is before the dash. For example:
+    #   "1446-½"
+    # '1': origin (145.69, 512.84)
+    # '-': origin (145.92, 515.07)
+    #
+    # So if we detect a "small" letter right before a dash, swap them.
+    for i, letter in enumerate(letters):
+        if i <= 0 or letter["c"] != '-':
+            continue
+        # Okay we have a dash, check the letter before it.
+        letter_before = letters[i - 1]
+        # Check if they're close together.
+        if letter["origin"][0] - letter_before["origin"][0] > 0.8:
+            continue
+
+        # See if it's a fraction compared to the dash.
+        letter_before_height = letter_before["bbox"][3] - letter_before["bbox"][1]
+        dash_height = letter["bbox"][3] - letter["bbox"][1]
+        if letter_before_height < dash_height * FRACTION_HEIGHT_PERCENTAGE:
+            # Swap the letters, this was likely just the dash being too close
+            # to the fraction.
+            letters[i] = letter_before
+            letters[i - 1] = letter
+
+    return letters
 
 
 def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
@@ -436,13 +465,13 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
         # size against the altitude number.
         first_number_bbox = pymupdf.Rect(first_number["bbox"])
         first_letter_bbox = pymupdf.Rect(letters[0]["bbox"])
-        if first_number_bbox.height < first_letter_bbox.height * 0.8:
+        if first_number_bbox.height < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE:
             visibility = f"{visibility}/{letters[i + 2]['c']}"
         elif len(letters) > (i + 3):
             # First number was not a fraction, so this could be a single number
             # or a mixed fraction. Check if the next number is a fraction.
             second_number_bbox = pymupdf.Rect(letters[i + 2]["bbox"])
-            if second_number_bbox.height < first_letter_bbox.height * 0.8:
+            if second_number_bbox.height < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE:
                 # Okay, next should be a fraction since it's close to the first
                 # number.
                 visibility = f"{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}"
