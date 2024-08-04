@@ -34,6 +34,7 @@ from plate_analyzer.schema import (
 )
 
 import pymupdf
+from tqdm import tqdm
 
 
 def scan_dtpp_file(zip):
@@ -128,43 +129,33 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
 
     failures = []
     approaches_by_airport = collections.defaultdict(list)
-    i = 0
     # Now iterate through each approach, and attempt to analyze it.
-    for zip_path in folder_path.glob("DDTPP*.zip"):
-        with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
-            for file in dtpp_zip.namelist():
-                if file not in approach_file_to_airport:
-                    print("Ignoring file", file)
-                    continue
-
-                i += 1
-                percent_progress = round(i / len(approach_file_to_airport) * 100, 1)
-
-                airport, approach = approach_file_to_airport[file]
-                with dtpp_zip.open(file) as approach_zip:
-                    pdf_data = io.BytesIO(approach_zip.read())
-                    pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
-                    try:
-                        print(
-                            f"Analyzing '{file}'. {i} / {len(approach_file_to_airport)} = {percent_progress}%"
-                        )
-                        approach_info = extract_information_from_pdf(pdf, debug=False)
-                        approaches_by_airport[airport].append(
-                            (approach_info, approach, file)
-                        )
-                    except Exception as e:
-                        exc_frame = traceback.extract_tb(e.__traceback__)[-1]
-                        failures.append(
-                            Failure(
-                                exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
-                                zip_file=zip_path.name,
-                                file_name=file,
-                                approach=ApproachName(
-                                    name=approach,
-                                    airport=airport,
-                                ),
-                            )
-                        )
+    # Set up a progress bar...
+    with tqdm(total=len(approach_file_to_airport)) as pbar:
+        # Go over every ddtpp pdf in the folder.
+        for file, pdf_data in dtpp_pdf_processing_iterator(
+            folder_path, approach_file_to_airport
+        ):
+            airport, approach = approach_file_to_airport[file]
+            pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
+            try:
+                approach_info = extract_information_from_pdf(pdf, debug=False)
+                approaches_by_airport[airport].append((approach_info, approach, file))
+            except Exception as e:
+                exc_frame = traceback.extract_tb(e.__traceback__)[-1]
+                failures.append(
+                    Failure(
+                        exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
+                        zip_file=zip_path.name,
+                        file_name=file,
+                        approach=ApproachName(
+                            name=approach,
+                            airport=airport,
+                        ),
+                    )
+                )
+            finally:
+                pbar.update(1)
 
     skipped_approaches = []
     for skip_reason, skipped_list in skipped.items():
@@ -202,6 +193,25 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
         failures=failures,
         skipped_approaches=skipped_approaches,
     )
+
+
+def dtpp_pdf_processing_iterator(folder_path: pathlib.Path, approach_file_to_airport):
+    """
+    Provides an iterator over the DDTPP zip files in a folder, yielding the name
+    of files and pdf data as io.BytesIO of any files in the approach_file_to_airport
+    dict.
+    """
+    for zip_path in folder_path.glob("DDTPP*.zip"):
+        with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
+            for file in dtpp_zip.namelist():
+                if file not in approach_file_to_airport:
+                    print("Ignoring file", file)
+                    continue
+
+                with dtpp_zip.open(file) as approach_zip:
+                    pdf_data = io.BytesIO(approach_zip.read())
+
+                yield (file, pdf_data)
 
 
 def create_approach_to_airport(
