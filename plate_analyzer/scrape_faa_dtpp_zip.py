@@ -11,6 +11,7 @@ import io
 import traceback
 import xml.etree.ElementTree as ET
 import re
+import multiprocessing
 from typing import Optional, Tuple, List
 
 from plate_analyzer import (
@@ -60,7 +61,7 @@ def scan_dtpp_file(zip):
                     print("OCR needed")
 
 
-def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
+def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisResult:
     """Given a folder containing the `DDTPPX_CYCLE.zip` files, analyzes all
     the approach plates inside. Combines with airport data from the
     `cifp` file to spit out a full analysis.
@@ -129,23 +130,39 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
 
     failures = []
     approaches_by_airport = collections.defaultdict(list)
+
     # Now iterate through each approach, and attempt to analyze it.
-    # Set up a progress bar...
-    with tqdm(total=len(approach_file_to_airport)) as pbar:
-        # Go over every ddtpp pdf in the folder.
-        for file, pdf_data in dtpp_pdf_processing_iterator(
-            folder_path, approach_file_to_airport
-        ):
-            airport, approach = approach_file_to_airport[file]
-            pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
-            try:
-                approach_info = extract_information_from_pdf(pdf, debug=False)
-                approaches_by_airport[airport].append((approach_info, approach, file))
-            except Exception as e:
-                exc_frame = traceback.extract_tb(e.__traceback__)[-1]
+    def pdf_processing_futures_iterator():
+        for file, pdf_data in dtpp_pdf_processing_iterator(folder_path):
+            if file not in approach_file_to_airport:
+                # print("Ignoring file", file)
+                continue
+            yield (file, pdf_data)
+
+    # Intentionally don't use a full cpu count worth of processes as this
+    # actually seems to slow stuff down.
+    if num_worker_processes is None:
+        num_worker_processes = (multiprocessing.cpu_count() // 2) + 1
+
+    with multiprocessing.Pool(processes=num_worker_processes) as pool:
+        # Set up a progress bar for counting as results come in...
+        with tqdm(total=len(approach_file_to_airport)) as pbar:
+            for file, approach_info, exception_message in pool.imap_unordered(
+                process_single_dtpp_pdf, pdf_processing_futures_iterator()
+            ):
+                pbar.update(1)
+
+                if exception_message is None:
+                    airport, approach = approach_file_to_airport[file]
+                    approaches_by_airport[airport].append(
+                        (approach_info, approach, file)
+                    )
+                    continue
+
+                # It threw an exception, add it to the failures.
                 failures.append(
                     Failure(
-                        exception_message=f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}",
+                        exception_message=exception_message,
                         zip_file=zip_path.name,
                         file_name=file,
                         approach=ApproachName(
@@ -154,8 +171,6 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
                         ),
                     )
                 )
-            finally:
-                pbar.update(1)
 
     skipped_approaches = []
     for skip_reason, skipped_list in skipped.items():
@@ -195,7 +210,7 @@ def analyze_dtpp_zips(folder, cifp_file) -> AnalysisResult:
     )
 
 
-def dtpp_pdf_processing_iterator(folder_path: pathlib.Path, approach_file_to_airport):
+def dtpp_pdf_processing_iterator(folder_path: pathlib.Path):
     """
     Provides an iterator over the DDTPP zip files in a folder, yielding the name
     of files and pdf data as io.BytesIO of any files in the approach_file_to_airport
@@ -204,14 +219,30 @@ def dtpp_pdf_processing_iterator(folder_path: pathlib.Path, approach_file_to_air
     for zip_path in folder_path.glob("DDTPP*.zip"):
         with zipfile.ZipFile(zip_path, "r") as dtpp_zip:
             for file in dtpp_zip.namelist():
-                if file not in approach_file_to_airport:
-                    print("Ignoring file", file)
-                    continue
-
                 with dtpp_zip.open(file) as approach_zip:
                     pdf_data = io.BytesIO(approach_zip.read())
 
                 yield (file, pdf_data)
+
+
+# Passed as a single arg because we use this with pool.imap_unordered.
+def process_single_dtpp_pdf(
+    arg: Tuple[str, io.BytesIO]
+) -> Tuple[str, SegmentedPlate, Exception]:
+    file_name, pdf_data = arg
+
+    try:
+        pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
+        approach_info = extract_information_from_pdf(pdf, debug=False)
+        return (file_name, approach_info, None)
+    except KeyboardInterrupt as e:
+        print("Keyboard interrupt in process_single_dtpp_pdf")
+        raise e
+    except Exception as e:
+        exc_frame = traceback.extract_tb(e.__traceback__)[-1]
+        exception_message = f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}"
+
+        return (file_name, None, exception_message)
 
 
 def create_approach_to_airport(

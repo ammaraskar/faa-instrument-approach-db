@@ -38,11 +38,14 @@ def extract_information_from_pdf(pdf, debug=False):
         plate, drawings, textpage, rectangles, debug=debug
     )
 
-    print("---- ", text_info.approach_name, " - ", text_info.airport_name, "--------")
-    print("Has ARC:", text_info.has_dme_arc)
-    print("Has procedure turn:", text_info.has_procedure_turn)
-    print("Has hold-in-lieu:", text_info.has_hold_in_lieu_of_procedure_turn)
-    for appch in text_info.approach_minimums:
-        print(appch)
+    if debug:
+        print(
+            "---- ", text_info.approach_name, " - ", text_info.airport_name, "--------"
+        )
+        print("Has ARC:", text_info.has_dme_arc)
+        print("Has procedure turn:", text_info.has_procedure_turn)
+        print("Has hold-in-lieu:", text_info.has_hold_in_lieu_of_procedure_turn)
+        for appch in text_info.approach_minimums:
+            print(appch)
 
     return text_info
