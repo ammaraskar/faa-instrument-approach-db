@@ -402,7 +402,7 @@ def get_minimums_text_letters(box, plate):
     #
     # So if we detect a "small" letter right before a dash, swap them.
     for i, letter in enumerate(letters):
-        if i <= 0 or letter["c"] != '-':
+        if i <= 0 or letter["c"] != "-":
             continue
         # Okay we have a dash, check the letter before it.
         letter_before = letters[i - 1]
@@ -465,13 +465,19 @@ def extract_minimums_from_text_box(box, minimum_type, plate) -> ApproachMinimum:
         # size against the altitude number.
         first_number_bbox = pymupdf.Rect(first_number["bbox"])
         first_letter_bbox = pymupdf.Rect(letters[0]["bbox"])
-        if first_number_bbox.height < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE:
+        if (
+            first_number_bbox.height
+            < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE
+        ):
             visibility = f"{visibility}/{letters[i + 2]['c']}"
         elif len(letters) > (i + 3):
             # First number was not a fraction, so this could be a single number
             # or a mixed fraction. Check if the next number is a fraction.
             second_number_bbox = pymupdf.Rect(letters[i + 2]["bbox"])
-            if second_number_bbox.height < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE:
+            if (
+                second_number_bbox.height
+                < first_letter_bbox.height * FRACTION_HEIGHT_PERCENTAGE
+            ):
                 # Okay, next should be a fraction since it's close to the first
                 # number.
                 visibility = f"{visibility} {letters[i + 2]['c']}/{letters[i + 3]['c']}"
