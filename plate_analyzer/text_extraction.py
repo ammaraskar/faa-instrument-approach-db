@@ -602,10 +602,10 @@ def has_dme_arc_in_plan_view(plan_view_box, plate):
     for a_location in letter_locations["A"]:
         # Check distances to the closest 'r' character.
         closest_r = min([r.distance_to(a_location) for r in letter_locations["r"]])
-        if closest_r > 8:
+        if closest_r > 6:
             continue
         closest_c = min([c.distance_to(a_location) for c in letter_locations["c"]])
-        if closest_c > 13:
+        if closest_c > 8:
             continue
         return True
 
