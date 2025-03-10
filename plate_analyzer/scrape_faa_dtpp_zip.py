@@ -16,7 +16,9 @@ from typing import Optional, Tuple, List
 
 from plate_analyzer import (
     extract_information_from_pdf,
+    get_airports_from_radar_minimums,
     PlateNeedsOCRException,
+    RadarApproachAirport
 )
 from plate_analyzer.text_extraction import SegmentedPlate, ApproachMinimum
 from plate_analyzer.cifp_analysis import analyze_cifp_file
@@ -87,6 +89,9 @@ def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisR
         raise ValueError("Did not locate d-TPP_Metafile.xml in any zip")
 
     skipped = collections.defaultdict(list)
+    # Radar minimums maps a radar minimums filename to a list of airports that
+    # uses that minimums file.
+    radar_minimums_files = set()
     # Maps the approach file pdf name to the airport the approach is for, as
     # well as the name of the approach.
     approach_file_to_airport = {}
@@ -97,12 +102,17 @@ def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisR
             airport_id = airport.attrib["apt_ident"]
 
         for record in airport.iter("record"):
-            # Specifically note instrument approaches.
             chart_code = record.find("chart_code").text
+            chart_name = record.find("chart_name").text
+            pdf_file = record.find("pdf_name").text
+
+            # Handle radar minimums.
+            if chart_code == "MIN" and chart_name == "RADAR MINIMUMS":
+                radar_minimums_files.add(pdf_file)
+                continue
+            # Handle instrument approaches.
             if chart_code != "IAP":
                 continue
-            pdf_file = record.find("pdf_name").text
-            chart_name = record.find("chart_name").text
 
             # Note if it's a civil or joint-use procedure. We can't parse
             # military procedures yet because their pdfs don't have text...
@@ -172,6 +182,15 @@ def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisR
                     )
                 )
 
+    # Parse radar minimum files.
+    radar_approaches = {}
+    for file, pdf_data in dtpp_pdf_processing_iterator(folder_path):
+        if file not in radar_minimums_files:
+            continue
+        pdf = pymupdf.open(filetype="pdf", stream=pdf_data)
+        for approach in get_airports_from_radar_minimums(pdf, debug=False):
+            radar_approaches[approach.airport] = (approach, file)
+
     skipped_approaches = []
     for skip_reason, skipped_list in skipped.items():
         skipped_approaches.append(
@@ -190,17 +209,30 @@ def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisR
         )
 
     cifp_airports = analyze_cifp_file(cifp_file)
-    # Merge data from the cifp dataset with the approach plates.
+
+    # Merge data from the cifp dataset with the approach plates and RADAR approaches.
     airports = {}
-    for airport, approaches in approaches_by_airport.items():
-        cifp_airport = cifp_airports[airport]
-        for plate_info, approach_name, file_name in approaches:
-            cifp_airport.approaches.append(
-                create_approach_to_airport(
-                    cifp_airport, plate_info, approach_name, file_name
+    for airport, cifp_airport in cifp_airports.items():
+        # First everything from the approach plates.
+        for approaches in approaches_by_airport[airport]:
+            for plate_info, approach_name, file_name in approaches:
+                cifp_airport.approaches.append(
+                    create_approach_to_airport(
+                        cifp_airport, plate_info, approach_name, file_name
+                    )
                 )
+        # Then the RADAR approaches.
+        if airport in radar_approaches:
+            radar_approach, file_name = radar_approaches[airport]
+            cifp_airport.approaches.append(
+                create_radar_approach_to_airport(radar_approach, file_name)
             )
-        airports[airport] = cifp_airport
+
+        # Only add if we actually have an approach to the airport.
+        if len(cifp_airport.approaches) > 0:
+            airports[airport] = cifp_airport
+    print(radar_approaches)
+    print(cifp_airports['KFAA'])
 
     return AnalysisResult(
         dtpp_cycle_number=dtpp_cycle,
@@ -243,6 +275,27 @@ def process_single_dtpp_pdf(
         exception_message = f"{repr(e)} {exc_frame.filename}:{exc_frame.lineno}"
 
         return (file_name, None, exception_message)
+    
+
+def create_radar_approach_to_airport(approach: RadarApproachAirport, file_name: str) -> Approach:
+    types = []
+    if approach.has_par:
+        pass
+    if approach.has_asr:
+        pass
+
+    return Approach(
+        name="RADAR",
+        plate_file=file_name,
+        types=types,
+        comments=ApproachComments(
+            text_comments="",
+            has_non_standard_takeoff_minimums=False,
+            has_non_standard_alternative_requirements=False,
+        ),
+        missed_instructions="",
+        minimums=[]
+    )
 
 
 def create_approach_to_airport(

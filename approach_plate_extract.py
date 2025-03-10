@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # cifp_analysis.analyze_cifp_file("../../Downloads/faa_dttp/FAACIFP18")
 
     results = scrape_faa_dtpp_zip.analyze_dtpp_zips(
-        "../../Downloads/faa_dttp/", cifp_file="../../Downloads/faa_dttp/FAACIFP18"
+        "../../Downloads/faa_dttp/smol_test", cifp_file="../../Downloads/faa_dttp/240711/FAACIFP18"
     )
     with open("output.json", "w") as f:
         f.write(results.model_dump_json())

@@ -1,4 +1,7 @@
 from . import segmentation, text_extraction
+import re
+from dataclasses import dataclass
+from typing import List
 
 import pymupdf
 
@@ -49,3 +52,51 @@ def extract_information_from_pdf(pdf, debug=False):
             print(appch)
 
     return text_info
+
+
+@dataclass
+class RadarApproachAirport:
+    airport: str
+    has_par: bool
+    has_asr: bool
+
+
+# Matches stuff like `(KRUY)` with the capture group being the ICAO code.
+ICAO_CODE_REGEX = re.compile(r"\(([A-Z]{4})\)")
+THREE_LETTER_FAA_CODE_REGEX = re.compile(r"\(([A-Z]{3})\)")
+
+
+def get_airports_from_radar_minimums(pdf: pymupdf.Document, debug=False) -> List[RadarApproachAirport]:
+    airports = []
+
+    for page in pdf:
+        textpage = page.get_textpage()
+        text = textpage.extractText()
+
+        if "RADAR INSTRUMENT APPROACH MINIMUMS" not in text:
+            if debug:
+                print("Page does not have radar approach minimums text")
+            continue
+
+        # Get the airport code, it'll be a paranthesized 4-letter icao code.
+        result = ICAO_CODE_REGEX.search(text)
+        if result is None:
+            if debug:
+                print("Could not find ICAO airport code in page, trying FAA")
+            # Could be a 3-letter faa code.
+            result = THREE_LETTER_FAA_CODE_REGEX.search(text)
+            if result is None:
+                print("Could not find ICAO or FAA code on page.")
+                continue
+            icao_code = "K" + result.group(1)
+        else:
+            icao_code = result.group(1)
+
+        # Now see if the words "PAR" and "ASR" show up on the page.
+        has_par = "PAR" in text
+        has_asr = "ASR" in text
+
+        airports.append(
+            RadarApproachAirport(airport=icao_code, has_par=has_par, has_asr=has_asr))
+
+    return airports
