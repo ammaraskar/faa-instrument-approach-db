@@ -5,9 +5,10 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -27,3 +28,18 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pytest
+    - name: execute py script # run main.py
+      run: python download.py
+
+    - name: Extract some files
+      run: 7z x CIFP_*.zip
+
+    - name: run approach plate extract
+      run: python approach_plate_extract.py
+
+    - name: run release
+      run: |
+        gh release create v0.0.5 approaches.json
+      env:
+        GH_TOKEN: ${{ github.token }}
+       
