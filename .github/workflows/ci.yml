@@ -39,7 +39,7 @@ jobs:
 
     - name: run release
       run: |
-        gh release create v0.0.5 approaches.json
+        gh release create v0.0.1 approaches.json
       env:
         GH_TOKEN: ${{ github.token }}
        
