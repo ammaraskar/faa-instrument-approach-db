@@ -166,7 +166,7 @@ def analyze_dtpp_zips(folder, cifp_file, num_worker_processes=None) -> AnalysisR
                         zip_file=zip_path.name,
                         file_name=file,
                         approach=ApproachName(
-                            name=approach,
+                            name=approach if "approach" in locals() else "UNKNOWN",
                             airport=airport,
                         ),
                     )
