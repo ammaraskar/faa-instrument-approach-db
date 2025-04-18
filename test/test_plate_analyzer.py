@@ -339,9 +339,12 @@ def test_extract_gets_correct_minimums_for_brookhaven(brookhaven_info):
     assert circling_approach.cat_d is None
 
 
-def test_extract_gets_correct_vda_and_tch_for_brookhaven(brookhaven_info):
+def test_extract_gets_correct_vertical_profile_for_brookhaven(brookhaven_info):
     assert brookhaven_info.vda == "2.96"
     assert brookhaven_info.tch == "47"
+    assert brookhaven_info.vgsi_angle is None
+    assert brookhaven_info.vgsi_tch is None
+    assert brookhaven_info.vgsi_vda_not_coincident == False
 
 
 @pytest.fixture(scope="session")
@@ -368,6 +371,9 @@ def test_extract_gets_correct_minimums_for_aspen(aspen_info):
     assert circling_approach.cat_d is None
 
 
-def test_extract_gets_correct_vda_and_tch_for_aspen(aspen_info):
+def test_extract_gets_correct_vertical_profile_for_aspen(aspen_info):
     assert aspen_info.vda == "6.59"
     assert aspen_info.tch == "55"
+    assert aspen_info.vgsi_angle == "3.50"
+    assert aspen_info.vgsi_tch == "55"
+    assert aspen_info.vgsi_vda_not_coincident == True
