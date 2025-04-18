@@ -251,22 +251,20 @@ def extract_text_from_segmented_plate(
 
     # Try to find the profile view box - below plan view and above minimums.
     profile_view_box = None
-    category_rect_top = plate.rect.height  # Default to bottom if minimums not found
-    try:
-        # Find the top of the minimums section by looking for the CATEGORY header
-        temp_category_rect = None
-        for i in range(len(rectangle_layout) - 1, 0, -1):
-            for j, rect in enumerate(rectangle_layout[i]):
-                rect_text = plate.get_textbox(rect, textpage=textpage).strip()
-                if "CATEGORY" in rect_text:
-                    temp_category_rect = rect
-                    break
-            if temp_category_rect:
+    category_rect_top = plate.rect.height  # Default to bottom if minimums not foun
+
+    # Find the top of the minimums section by looking for the CATEGORY header
+    temp_category_rect = None
+    for i in range(len(rectangle_layout) - 1, 0, -1):
+        for j, rect in enumerate(rectangle_layout[i]):
+            rect_text = plate.get_textbox(rect, textpage=textpage).strip()
+            if "CATEGORY" in rect_text:
+                temp_category_rect = rect
                 break
         if temp_category_rect:
-            category_rect_top = temp_category_rect.y0
-    except Exception:
-        pass
+            break
+    if temp_category_rect:
+        category_rect_top = temp_category_rect.y0
 
     if plan_view_box:
         profile_view_box = pymupdf.Rect(
