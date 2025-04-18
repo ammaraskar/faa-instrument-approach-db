@@ -4,7 +4,7 @@ from plate_analyzer.scrape_faa_dtpp_zip import (
     calculate_heading_angle_difference,
 )
 from plate_analyzer.text_extraction import SegmentedPlate, Waypoint, PlateComments
-from plate_analyzer.schema import Airport, Runway, ApproachType
+from plate_analyzer.schema import Airport, Runway, ApproachType, VerticalProfile
 
 from pathlib import Path
 
@@ -63,6 +63,11 @@ def test_create_approach_to_airport():
             "of 357 feet per NM to 2000.",
         ),
         approach_minimums=[],
+        vda="3.00",
+        tch="50",
+        vgsi_angle="3.00",
+        vgsi_tch="48",
+        vgsi_vda_not_coincident=True,
     )
 
     approach = create_approach_to_airport(
@@ -83,6 +88,13 @@ def test_create_approach_to_airport():
     assert approach.has_dme_arc == False
     assert approach.has_hold_in_lieu_of_procedure_turn == False
     assert approach.has_procedure_turn == False
+
+    assert approach.vertical_profile is not None
+    assert approach.vertical_profile.vda == "3.00"
+    assert approach.vertical_profile.tch == "50"
+    assert approach.vertical_profile.vgsi_angle == "3.00"
+    assert approach.vertical_profile.vgsi_tch == "48"
+    assert approach.vertical_profile.vgsi_vda_not_coincident is True
 
 
 def test_approach_types_handles_or_conjuctions():

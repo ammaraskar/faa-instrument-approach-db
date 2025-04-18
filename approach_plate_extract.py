@@ -4,7 +4,8 @@ from plate_analyzer import scrape_faa_dtpp_zip, cifp_analysis
 
 if __name__ == "__main__":
     # extract_information_from_plate("../../Downloads/06065R8.PDF", debug=True)
-    # extract_information_from_plate("test_data/05222VT15.PDF", debug=True)
+    # extract_information_from_plate("test_data/05222VT15.pdf", debug=True)
+    # extract_information_from_plate("test_data/05889LDE.pdf", debug=True)
 
     # cifp_analysis.analyze_cifp_file("../../Downloads/faa_dttp/FAACIFP18")
 

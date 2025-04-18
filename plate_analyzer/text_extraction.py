@@ -66,6 +66,11 @@ class SegmentedPlate:
     missed_approach_instructions: Tuple[pymupdf.Rect, str]
 
     approach_minimums: List[ApproachCategory]
+    vda: Optional[str]
+    tch: Optional[str]
+    vgsi_angle: Optional[str]
+    vgsi_tch: Optional[str]
+    vgsi_vda_not_coincident: bool = False
 
 
 def extract_text_from_segmented_plate(
@@ -244,6 +249,41 @@ def extract_text_from_segmented_plate(
     except ValueError:
         minimums = []
 
+    # Try to find the profile view box - below plan view and above minimums.
+    profile_view_box = None
+    category_rect_top = plate.rect.height  # Default to bottom if minimums not found
+    try:
+        # Find the top of the minimums section by looking for the CATEGORY header
+        temp_category_rect = None
+        for i in range(len(rectangle_layout) - 1, 0, -1):
+            for j, rect in enumerate(rectangle_layout[i]):
+                rect_text = plate.get_textbox(rect, textpage=textpage).strip()
+                if "CATEGORY" in rect_text:
+                    temp_category_rect = rect
+                    break
+            if temp_category_rect:
+                break
+        if temp_category_rect:
+            category_rect_top = temp_category_rect.y0
+    except Exception:
+        pass
+
+    if plan_view_box:
+        profile_view_box = pymupdf.Rect(
+            plan_view_box.x0,
+            plan_view_box.y1 + 1,  # Start just below plan view
+            plan_view_box.x1,
+            category_rect_top - 1,  # End just above minimums category header
+        )
+        # Ensure the box has positive height
+        if profile_view_box.y1 <= profile_view_box.y0:
+            profile_view_box = None
+
+    # Extract VDA and TCH from the profile view
+    vda, tch, vgsi_angle, vgsi_tch, vgsi_vda_not_coincident = (
+        extract_vertical_profile_info(plate, profile_view_box)
+    )
+
     return SegmentedPlate(
         approach_name=approach_name,
         airport_name=airport_name,
@@ -256,6 +296,11 @@ def extract_text_from_segmented_plate(
         missed_approach_instructions=(missed_approach_rect, missed_approach_text),
         comments=comments,
         approach_minimums=minimums,
+        vda=vda,
+        tch=tch,
+        vgsi_angle=vgsi_angle,
+        vgsi_tch=vgsi_tch,
+        vgsi_vda_not_coincident=vgsi_vda_not_coincident,
     )
 
 
@@ -304,6 +349,15 @@ def extract_minimums(
             )
         category_boxes.append(letter_rect)
     categories_width = sum([cat_box.width for cat_box in category_boxes])
+
+    # Filter out rectangles that are to the right of the last category box
+    # and remove empty rows
+    rightmost_x = category_boxes[-1].top_right.x
+    rectangle_layout = [
+        [rect for rect in row if rect.top_left.x <= rightmost_x + 0.5]
+        for row in rectangle_layout
+    ]
+    rectangle_layout = [row for row in rectangle_layout if len(row) > 0]
 
     # Grab the first approach name.
     all_minimums = []
@@ -610,6 +664,115 @@ def has_dme_arc_in_plan_view(plan_view_box, plate):
         return True
 
     return False
+
+
+def extract_vertical_profile_info(
+    plate: pymupdf.Page, profile_view_box: pymupdf.Rect
+) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[bool]]:
+    """Extracts VDA, TCH, VGSI Angle, VGSI TCH strings and not coincident flag,
+    using line info for VGSI and positional info for VDA/TCH.
+    """
+    vda = None
+    tch = None
+    vgsi_angle = None
+    vgsi_tch = None
+    vgsi_vda_not_coincident = False
+    vda_bbox = None  # Store VDA bounding box
+
+    if profile_view_box is None:
+        return None, None, None, None, None
+
+    # Get raw text for "not coincident" check first
+    profile_text_raw = plate.get_text(option="text", clip=profile_view_box, sort=True)
+    if "not coincident".lower() in profile_text_raw.lower():
+        vgsi_vda_not_coincident = True
+
+    # --- VGSI Extraction (Line-based) ---
+    # Use get_text("dict") to get line info, though blocks might be safer if lines split
+    profile_dict = plate.get_text("dict", clip=profile_view_box, sort=True)
+    vgsi_pattern = re.compile(r"VGSI\s+Angle\s+(\d\.\d{2})/TCH\s+(\d+)", re.IGNORECASE)
+
+    for block in profile_dict.get("blocks", []):
+        for line in block.get("lines", []):
+            line_text = "".join([span["text"] for span in line.get("spans", [])])
+            if "VGSI Angle".lower() in line_text.lower():
+                vgsi_match = vgsi_pattern.search(line_text)
+                if vgsi_match:
+                    vgsi_angle = vgsi_match.group(1).strip()
+                    vgsi_tch = vgsi_match.group(2).strip()
+                    break  # Assume only one such line
+        if vgsi_angle is not None:  # Break outer loop too
+            break
+
+    # --- VDA Extraction (Positional Analysis) ---
+    words = plate.get_text("words", clip=profile_view_box, sort=True)
+    # Pattern for VDA number like 3.00
+    vda_num_pattern = re.compile(r"^(\d\.\d{2})$")
+    # Pattern for VDA number followed immediately by degree symbol like 3.00°
+    vda_num_deg_pattern = re.compile(r"^(\d\.\d{2})°$")
+    horizontal_closeness_threshold = 5
+
+    for i, word_info in enumerate(words):
+        word_text = word_info[4]
+        potential_vda_match = None
+        num_word_info = None
+        num_word_idx = -1
+
+        # Case 1: Word is the number (e.g., "3.00") and the next word is "°"
+        if (
+            vda_num_pattern.match(word_text)
+            and i + 1 < len(words)
+            and words[i + 1][4] == "°"
+        ):
+            potential_vda_match = vda_num_pattern.match(word_text)
+            num_word_info = word_info
+            num_word_idx = i
+
+        # Case 2: Word contains number and degree symbol (e.g., "3.00°")
+        elif vda_num_deg_pattern.match(word_text):
+            potential_vda_match = vda_num_deg_pattern.match(word_text)
+            num_word_info = word_info
+            num_word_idx = i
+
+        # If a potential VDA number was found in either case:
+        if potential_vda_match and num_word_info:
+            # Check if this number is immediately preceded by another numeric word
+            # (e.g., to avoid matching a course number like 042°)
+            precedes_numeric = False
+            if num_word_idx > 0:
+                prev_word_info = words[num_word_idx - 1]
+                prev_word_text = prev_word_info[4]
+                prev_word_x1 = prev_word_info[2]
+                num_word_x0 = num_word_info[0]
+                # Check if previous word is numeric and close horizontally
+                if (
+                    prev_word_text.isdigit()
+                    and (num_word_x0 - prev_word_x1) < horizontal_closeness_threshold
+                ):
+                    precedes_numeric = True
+
+            # If it's not preceded by a number, we likely found the VDA
+            if not precedes_numeric:
+                vda = potential_vda_match.group(1).strip()
+                # Store the bounding box of the number word itself
+                vda_bbox = pymupdf.Rect(num_word_info[:4])
+                break  # Found VDA, exit loop
+
+    # --- Primary TCH Extraction (Positional based on VDA) ---
+    if vda_bbox is not None:
+        for i, word_info in enumerate(words):
+            # Find the word "TCH"
+            if word_info[4].upper() == "TCH" and i + 1 < len(words):
+                tch_num_word_info = words[i + 1]
+                tch_num_text = tch_num_word_info[4].strip()
+                tch_num_bbox = pymupdf.Rect(tch_num_word_info[:4])
+
+                # Check if it's a number and located below the VDA number
+                if tch_num_text.isdigit() and tch_num_bbox.y0 > vda_bbox.y1:
+                    tch = tch_num_text
+                    break  # Found primary TCH below VDA
+
+    return vda, tch, vgsi_angle, vgsi_tch, vgsi_vda_not_coincident
 
 
 def find_plan_view_box(rectangle_layout, plate) -> pymupdf.Rect:

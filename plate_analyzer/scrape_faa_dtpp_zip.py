@@ -32,6 +32,7 @@ from plate_analyzer.schema import (
     ApproachMinimums,
     MinimumsValue,
     APPROACH_NOT_ALLOWED,
+    VerticalProfile,
 )
 
 import pymupdf
@@ -269,6 +270,22 @@ def create_approach_to_airport(
         if not airport_runway:
             runway = None
 
+    # Create VerticalProfile if any data exists
+    vert_profile = None
+    if (
+        plate_info.vda is not None
+        or plate_info.tch is not None
+        or plate_info.vgsi_angle is not None
+        or plate_info.vgsi_tch is not None
+    ):
+        vert_profile = VerticalProfile(
+            vda=plate_info.vda,
+            tch=plate_info.tch,
+            vgsi_angle=plate_info.vgsi_angle,
+            vgsi_tch=plate_info.vgsi_tch,
+            vgsi_vda_not_coincident=plate_info.vgsi_vda_not_coincident,
+        )
+
     return Approach(
         name=approach_name,
         plate_file=file_name,
@@ -289,6 +306,8 @@ def create_approach_to_airport(
         has_hold_in_lieu_of_procedure_turn=plate_info.has_hold_in_lieu_of_procedure_turn,
         # Minimums.
         minimums=minimums_from_plate_info(plate_info),
+        # Vertical profile.
+        vertical_profile=vert_profile,
     )
 
 

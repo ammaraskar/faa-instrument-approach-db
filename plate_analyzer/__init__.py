@@ -48,4 +48,12 @@ def extract_information_from_pdf(pdf, debug=False):
         for appch in text_info.approach_minimums:
             print(appch)
 
+        print("Vertical profile:")
+
+        print("Vertical descent angle:", text_info.vda)
+        print("Threshold crossing height:", text_info.tch)
+        print("VGSI angle:", text_info.vgsi_angle)
+        print("VGSI TCH:", text_info.vgsi_tch)
+        print("VGSI VDA not coincident:", text_info.vgsi_vda_not_coincident)
+
     return text_info

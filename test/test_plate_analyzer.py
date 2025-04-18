@@ -13,6 +13,8 @@ TEST_PLATE = TEST_DATA_DIR / "05035R7.pdf"
 ATHENS_TEST_PLATE = TEST_DATA_DIR / "00983ILD27.pdf"
 MARIN_STATE_TEST_PLATE = TEST_DATA_DIR / "05222VT15.pdf"
 PORTLAND_TEST_PLATE = TEST_DATA_DIR / "00330IL10R.pdf"
+BROOKHAVEN_TEST_PLATE = TEST_DATA_DIR / "05603V6.pdf"
+ASPEN_TEST_PLATE = TEST_DATA_DIR / "05889LDE.pdf"
 
 
 @pytest.fixture(scope="session")
@@ -94,6 +96,14 @@ def test_extract_gets_correct_requried_equipment(extracted_information):
     assert extracted_information.required_equipment[1] == "RNP APCH."
 
 
+def test_extract_gets_correct_vertical_profile(extracted_information):
+    assert extracted_information.vda == "3.00"
+    assert extracted_information.tch == "45"
+    assert extracted_information.vgsi_angle == "3.00"
+    assert extracted_information.vgsi_tch == "28"
+    assert extracted_information.vgsi_vda_not_coincident == True
+
+
 @pytest.fixture(scope="session")
 def athens_info():
     return plate_analyzer.extract_information_from_plate(ATHENS_TEST_PLATE)
@@ -171,6 +181,14 @@ def test_extract_gets_correct_minimums_for_athens(athens_info):
     assert circling_approach.cat_d.visibility == "2"
 
 
+def test_extract_gets_correct_vertical_profile_for_athens(athens_info):
+    assert athens_info.vda == "3.00"
+    assert athens_info.tch == "40"
+    assert athens_info.vgsi_angle is None
+    assert athens_info.vgsi_tch is None
+    assert athens_info.vgsi_vda_not_coincident == False
+
+
 @pytest.fixture(scope="session")
 def marin_state_info():
     return plate_analyzer.extract_information_from_plate(MARIN_STATE_TEST_PLATE)
@@ -235,6 +253,14 @@ def test_extract_gets_correct_minimums_for_martin(marin_state_info):
     assert circling_approach.cat_d.visibility == "3"
 
 
+def test_extract_gets_correct_vertical_profile_for_martin(marin_state_info):
+    assert marin_state_info.vda is None
+    assert marin_state_info.tch is None
+    assert marin_state_info.vgsi_angle is None
+    assert marin_state_info.vgsi_tch is None
+    assert marin_state_info.vgsi_vda_not_coincident == False
+
+
 @pytest.fixture(scope="session")
 def portland_info():
     return plate_analyzer.extract_information_from_plate(PORTLAND_TEST_PLATE)
@@ -271,3 +297,77 @@ def test_extract_gets_correct_minimums_for_portland(portland_info):
     assert circling_approach.cat_c.altitude == "1060"
     assert circling_approach.cat_c.visibility == "3"
     assert circling_approach.cat_d == circling_approach.cat_c
+
+
+def test_extract_gets_correct_vertical_profile_for_portland(portland_info):
+    assert portland_info.vda == "3.00"
+    assert portland_info.tch == "53"
+    assert portland_info.vgsi_angle == "3.00"
+    assert portland_info.vgsi_tch == "71"
+    assert portland_info.vgsi_vda_not_coincident == True
+
+
+@pytest.fixture(scope="session")
+def brookhaven_info():
+    return plate_analyzer.extract_information_from_plate(BROOKHAVEN_TEST_PLATE)
+
+
+def test_extract_gets_correct_approach_title_for_brookhaven(brookhaven_info):
+    assert brookhaven_info.approach_name == "VOR RWY 6"
+    assert brookhaven_info.airport_name == "BROOKHAVEN (HWV)"
+
+
+def test_extract_gets_correct_minimums_for_brookhaven(brookhaven_info):
+    assert len(brookhaven_info.approach_minimums) == 2
+
+    vor_approach = brookhaven_info.approach_minimums[0]
+    assert vor_approach.approach_type == "S-6"
+    assert vor_approach.cat_a.altitude == "620"
+    assert vor_approach.cat_a.visibility == "1"
+    assert vor_approach.cat_b == vor_approach.cat_a
+
+    assert vor_approach.cat_c is None
+    assert vor_approach.cat_d is None
+
+    circling_approach = brookhaven_info.approach_minimums[1]
+    assert circling_approach.approach_type == "CIRCLING (Expanded Radius)"
+    assert circling_approach.cat_a.altitude == "620"
+    assert circling_approach.cat_a.visibility == "1"
+    assert circling_approach.cat_b == circling_approach.cat_a
+
+    assert circling_approach.cat_c is None
+    assert circling_approach.cat_d is None
+
+
+def test_extract_gets_correct_vda_and_tch_for_brookhaven(brookhaven_info):
+    assert brookhaven_info.vda == "2.96"
+    assert brookhaven_info.tch == "47"
+
+
+@pytest.fixture(scope="session")
+def aspen_info():
+    return plate_analyzer.extract_information_from_plate(ASPEN_TEST_PLATE)
+
+
+def test_extract_gets_correct_approach_title_for_aspen(aspen_info):
+    assert aspen_info.approach_name == "LOC/DME-E"
+    assert aspen_info.airport_name == "ASPEN-PITKIN COUNTY/SARDY FLD (ASE)"
+
+
+def test_extract_gets_correct_minimums_for_aspen(aspen_info):
+    assert len(aspen_info.approach_minimums) == 1
+
+    circling_approach = aspen_info.approach_minimums[0]
+    assert circling_approach.approach_type == "CIRCLING"
+    assert circling_approach.cat_a.altitude == "9840"
+    assert circling_approach.cat_a.visibility == "3"
+    assert circling_approach.cat_b.altitude == "10220"
+    assert circling_approach.cat_b.visibility == "3"
+    assert circling_approach.cat_c.altitude == "10960"
+    assert circling_approach.cat_c.visibility == "3"
+    assert circling_approach.cat_d is None
+
+
+def test_extract_gets_correct_vda_and_tch_for_aspen(aspen_info):
+    assert aspen_info.vda == "6.59"
+    assert aspen_info.tch == "55"

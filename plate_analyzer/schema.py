@@ -114,6 +114,16 @@ class ApproachComments(BaseModel):
     text_comments: str
 
 
+class VerticalProfile(BaseModel):
+    """Holds information about the vertical profile, including VDA and VGSI."""
+
+    vda: Optional[str] = None
+    tch: Optional[str] = None
+    vgsi_angle: Optional[str] = None
+    vgsi_tch: Optional[str] = None
+    vgsi_vda_not_coincident: bool = False
+
+
 class Approach(BaseModel):
     """
     Conceptually this is one-to-one with a single FAA approach plate.
@@ -142,6 +152,8 @@ class Approach(BaseModel):
 
     # Any minimums that were successfuly parsed, may be empty.
     minimums: List[ApproachMinimums]
+
+    vertical_profile: Optional[VerticalProfile] = None
 
 
 class Runway(BaseModel):
