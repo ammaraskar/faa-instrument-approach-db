@@ -4,7 +4,7 @@ from plate_analyzer.scrape_faa_dtpp_zip import (
     calculate_heading_angle_difference,
 )
 from plate_analyzer.text_extraction import SegmentedPlate, Waypoint, PlateComments
-from plate_analyzer.schema import Airport, Runway, ApproachType, VerticalProfile
+from plate_analyzer.schema import Airport, Runway, ApproachType
 
 from pathlib import Path
 
